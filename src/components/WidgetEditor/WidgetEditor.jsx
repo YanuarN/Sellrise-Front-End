@@ -11,24 +11,143 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
   const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState(false);
   const [displayMode, setDisplayMode] = useState('bubble'); // bubble or inline
+  const [fallbackMessage, setFallbackMessage] = useState('Please leave your details and our team will contact you shortly.');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [domains, setDomains] = useState(['example.com', 'yourdomain.com']);
 
   // Generate embed snippet based on workspace
   const generateSnippet = () => {
+    const serializedFallbackMessage = JSON.stringify(fallbackMessage);
+
     return `<script>
-  (function(w,d,s,o,f,js,fjs){
-    w['SellriseWidget']=o;w[o]=w[o]||function(){(w[o].q=w[o].q||[]).push(arguments)};
-    js=d.createElement(s),fjs=d.getElementsByTagName(s)[0];
-    js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);
-  }(window,document,'script','sellrise','https://cdn.sellrise.ai/widget.js'));
-  
-  // Initialize widget
-  sellrise('init', {
-    workspace: '${workspaceId}',
-    displayMode: '${displayMode}',
-    position: 'bottom-right'
-  });
+  (function(w,d){
+    var widgetMode = '${displayMode}';
+    var fallbackMessage = ${serializedFallbackMessage};
+    var fallbackEndpoint = '/v1/widget/fallback-lead';
+    var timeoutMs = 12000;
+    var initialized = false;
+    var fallbackRendered = false;
+
+    function createCorrelationId() {
+      return 'cid_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+    }
+
+    function renderFallback(reason, error) {
+      if (fallbackRendered) return;
+      fallbackRendered = true;
+
+      var correlationId = createCorrelationId();
+      var mount = widgetMode === 'inline'
+        ? d.getElementById('sellrise-widget')
+        : null;
+
+      if (!mount) {
+        mount = d.createElement('div');
+        mount.style.position = 'fixed';
+        mount.style.right = '16px';
+        mount.style.bottom = '16px';
+        mount.style.width = '320px';
+        mount.style.maxWidth = 'calc(100vw - 32px)';
+        mount.style.zIndex = '2147483646';
+        d.body.appendChild(mount);
+      }
+
+      mount.innerHTML = '';
+
+      var card = d.createElement('div');
+      card.style.fontFamily = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+      card.style.background = '#ffffff';
+      card.style.border = '1px solid #e5e7eb';
+      card.style.borderRadius = '12px';
+      card.style.boxShadow = '0 10px 30px rgba(0,0,0,.12)';
+      card.style.padding = '16px';
+      card.innerHTML =
+        '<h4 style="margin:0 0 8px;font-size:16px;font-weight:600;color:#111827;">We are here to help</h4>' +
+        '<p style="margin:0 0 12px;font-size:14px;line-height:1.4;color:#374151;">' + fallbackMessage + '</p>' +
+        '<form id="sellrise-fallback-form" style="display:grid;gap:8px">' +
+          '<input name="name" required placeholder="Your name" style="padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px" />' +
+          '<input type="email" name="email" required placeholder="Email" style="padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px" />' +
+          '<input name="phone" placeholder="Phone (optional)" style="padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px" />' +
+          '<button type="submit" style="padding:10px 12px;background:#111827;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer">Submit</button>' +
+        '</form>' +
+        '<p id="sellrise-fallback-status" style="margin:8px 0 0;font-size:12px;color:#6b7280"></p>';
+
+      mount.appendChild(card);
+
+      var form = card.querySelector('#sellrise-fallback-form');
+      var status = card.querySelector('#sellrise-fallback-status');
+
+      form.addEventListener('submit', function(evt) {
+        evt.preventDefault();
+        var formData = new FormData(form);
+        var payload = {
+          name: formData.get('name'),
+          email: formData.get('email'),
+          phone: formData.get('phone') || null,
+          reason: reason,
+          correlation_id: correlationId,
+          page_url: w.location.href,
+        };
+
+        status.textContent = 'Submitting...';
+
+        fetch(fallbackEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+          .then(function(res) {
+            if (!res.ok) throw new Error('Fallback submission failed');
+            status.textContent = 'Thanks. We received your details.';
+            form.reset();
+          })
+          .catch(function() {
+            status.textContent = 'Could not submit right now. Please try again.';
+          });
+      });
+
+      console.error('[Sellrise] Fallback triggered', {
+        reason: reason,
+        correlation_id: correlationId,
+        error: error ? String(error) : null,
+      });
+    }
+
+    var js = d.createElement('script');
+    js.src = 'https://cdn.sellrise.ai/widget.js';
+    js.async = true;
+
+    js.onload = function() {
+      try {
+        if (typeof w.sellrise !== 'function') {
+          renderFallback('session_failure');
+          return;
+        }
+
+        w.sellrise('init', {
+          workspace: '${workspaceId}',
+          displayMode: '${displayMode}',
+          position: 'bottom-right'
+        });
+
+        initialized = true;
+      } catch (err) {
+        renderFallback('session_failure', err);
+      }
+    };
+
+    js.onerror = function() {
+      renderFallback('session_failure');
+    };
+
+    d.head.appendChild(js);
+
+    w.setTimeout(function() {
+      if (!initialized) {
+        renderFallback('timeout');
+      }
+    }, timeoutMs);
+  })(window, document);
 </script>`;
   };
 
@@ -171,6 +290,28 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
       <Card>
         <div className="space-y-4">
           <div>
+            <h3 className="text-lg font-semibold text-gray-900">Fallback Configuration</h3>
+            <p className="mt-1 text-sm text-gray-600">
+              This message appears when widget session fails or times out.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Fallback Message</label>
+            <input
+              type="text"
+              value={fallbackMessage}
+              onChange={(e) => setFallbackMessage(e.target.value)}
+              maxLength={140}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              placeholder="Please leave your details and our team will contact you shortly."
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              {fallbackMessage.length}/140 characters
+            </p>
+          </div>
+
+          <div>
             <h3 className="text-lg font-semibold text-gray-900">Embed Snippet</h3>
             <p className="mt-1 text-sm text-gray-600">
               Copy and paste this code into your website's HTML
@@ -193,6 +334,10 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
               </li>
               <li>4. The widget will load automatically on page visit</li>
             </ol>
+          </div>
+
+          <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+            Fallback is hardcoded in this snippet with timeout/session-failure handling and submits to <code>/v1/widget/fallback-lead</code>.
           </div>
         </div>
       </Card>

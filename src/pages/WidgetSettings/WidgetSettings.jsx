@@ -1,7 +1,27 @@
-import { Code2, Zap, Settings } from 'lucide-react';
+import { useState } from 'react';
+import { Code2, Palette, Settings as SettingsIcon } from 'lucide-react';
 import WidgetEditor from '../../components/WidgetEditor/WidgetEditor';
+import BrandingCustomizer from '../../components/BrandingCustomizer/BrandingCustomizer';
 
 function WidgetSettings() {
+  const [activeTab, setActiveTab] = useState('embed');
+  const [brandingConfig, setBrandingConfig] = useState({
+    primaryColor: '#3b82f6',
+    bubbleColor: '#3b82f6',
+    bubbleIcon: '💬',
+    welcomeMessage: 'Hi! How can we help?',
+    position: 'bottom-right',
+    logoUrl: '',
+    borderRadius: '16',
+    bubbleSize: 'large',
+  });
+
+  const tabs = [
+    { id: 'embed', label: 'Embed Code', icon: Code2 },
+    { id: 'appearance', label: 'Appearance', icon: Palette },
+    { id: 'settings', label: 'Settings', icon: SettingsIcon },
+  ];
+
   return (
     <div className="h-full bg-gray-50 p-6">
       {/* Header */}
@@ -19,12 +39,57 @@ function WidgetSettings() {
         </div>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="mb-6 flex border-b border-gray-200 bg-white rounded-t-lg">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-6 py-4 font-medium text-sm transition-all border-b-2 ${
+                activeTab === tab.id
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Icon size={18} />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Main Content */}
       <div className="max-w-4xl">
-        <WidgetEditor
-          workspaceId="workspace_abc123def456"
-          workspaceName="Sales Demo"
-        />
+        {activeTab === 'embed' && (
+          <WidgetEditor
+            workspaceId="workspace_abc123def456"
+            workspaceName="Sales Demo"
+          />
+        )}
+
+        {activeTab === 'appearance' && (
+          <BrandingCustomizer
+            initialBranding={brandingConfig}
+            onBrandingChange={(branding) => {
+              setBrandingConfig(branding);
+              // TODO: Persist branding with backend API when endpoint is ready.
+            }}
+          />
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="rounded-lg bg-white p-8 shadow-sm">
+            <div className="text-center py-12">
+              <SettingsIcon size={48} className="mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Advanced Settings</h3>
+              <p className="text-gray-600">
+                Additional configuration options coming soon...
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Quick Links */}
