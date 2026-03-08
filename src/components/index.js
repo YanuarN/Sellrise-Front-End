@@ -4,3 +4,4 @@ export { default as Badge } from './Badge';
 export { default as Card } from './Card';
 export { default as LeadCard } from './LeadCard';
 export { default as BadgeContent } from './BadgeContent';
+export { default as StepRenderer } from './StepRenderer';

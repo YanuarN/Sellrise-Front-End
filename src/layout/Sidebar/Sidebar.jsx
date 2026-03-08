@@ -13,7 +13,8 @@ import {
     Bot,
     ScanLine,
     Wallet,
-    LayoutDashboard
+    LayoutDashboard,
+    Settings
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
@@ -26,6 +27,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         { name: 'Analytics', icon: PieChart, path: '/analytics' },
         { name: 'Chats', icon: MessageSquare, path: '/chats' },
         { name: 'CRM', icon: Users, path: '/crm' },
+        { name: 'Scenarios', icon: Bot, path: '/scenarios' },
         { name: 'Integrations', icon: ScanLine, path: '/integrations' },
         { name: 'Plans & Billing', icon: Wallet, path: '/billing' },
     ];
