@@ -4,6 +4,7 @@ import LeadManagement from './pages/LeadManagement/LeadManagement';
 import LandingPage from './pages/LandingPage/LandingPage';
 import Login from './pages/Auth/Login';
 import Dashboard from './pages/Dashboard';
+import WidgetSettings from './pages/WidgetSettings';
 
 function App() {
   return (
@@ -27,6 +28,14 @@ function App() {
           element={
             <MainLayout>
               <LeadManagement />
+            </MainLayout>
+          }
+        />
+        <Route
+          path="/admin/widget-settings"
+          element={
+            <MainLayout>
+              <WidgetSettings />
             </MainLayout>
           }
         />
