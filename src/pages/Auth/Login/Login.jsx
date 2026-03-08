@@ -1,16 +1,29 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, Sparkles, Bot, MessageSquare, LayoutGrid } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Sparkles, Bot, MessageSquare, LayoutGrid, Loader2 } from 'lucide-react';
 import { Button, Input } from '../../../components';
+import useAuthStore from '../../../stores/authStore';
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const navigate = useNavigate();
+  const login = useAuthStore((s) => s.login);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    navigate('/dashboard');
+    setErrorMsg('');
+    setLoading(true);
+    try {
+      await login(email, password);
+      navigate('/dashboard');
+    } catch (err) {
+      setErrorMsg(err.message || 'Invalid email or password');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -88,6 +101,11 @@ function Login() {
           </div>
 
           <form className="mt-8 space-y-5" onSubmit={handleLogin}>
+            {errorMsg && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium">
+                {errorMsg}
+              </div>
+            )}
             <div className="space-y-4">
               <div>
                 <label className="mb-1.5 block text-[13px] font-bold text-gray-700" htmlFor="email">
@@ -144,17 +162,18 @@ function Login() {
               </div>
 
               <div className="text-sm">
-                <a href="#" className="font-semibold text-blue-600 hover:text-blue-700 transition-colors">
+                <Link to="/forgot-password" className="font-semibold text-blue-600 hover:text-blue-700 transition-colors">
                   Forgot password?
-                </a>
+                </Link>
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-2 py-3.5 px-4 border border-transparent rounded-xl shadow-lg shadow-blue-500/30 text-[15px] font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all hover:scale-[1.02] active:scale-[0.98] mt-4"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-3.5 px-4 border border-transparent rounded-xl shadow-lg shadow-blue-500/30 text-[15px] font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all hover:scale-[1.02] active:scale-[0.98] mt-4 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              Sign in <ArrowRight className="w-4 h-4" />
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Sign in <ArrowRight className="w-4 h-4" /></>}
             </button>
           </form>
 
