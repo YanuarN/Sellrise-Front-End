@@ -25,6 +25,7 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
   (function(w,d){
     var widgetMode = '${displayMode}';
     var fallbackMessage = ${serializedFallbackMessage};
+    var sessionEndpoint = '/v1/widget/session';
     var fallbackEndpoint = '/v1/widget/fallback-lead';
     var timeoutMs = 12000;
     var initialized = false;
@@ -126,13 +127,38 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
           return;
         }
 
-        w.sellrise('init', {
-          workspace: '${workspaceId}',
-          displayMode: '${displayMode}',
-          position: 'bottom-right'
-        });
+        fetch(sessionEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            domain: w.location.hostname,
+            page_url: w.location.href,
+            referrer: d.referrer || null,
+            utm_source: new URLSearchParams(w.location.search).get('utm_source'),
+            utm_medium: new URLSearchParams(w.location.search).get('utm_medium'),
+            utm_campaign: new URLSearchParams(w.location.search).get('utm_campaign'),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          }),
+        })
+          .then(function(res) {
+            if (!res.ok) throw new Error('Session handshake failed');
+            return res.json();
+          })
+          .then(function(session) {
+            w.sellrise('init', {
+              workspace: '${workspaceId}',
+              displayMode: '${displayMode}',
+              position: 'bottom-right',
+              sessionId: session.session_id,
+              scenario: session.scenario_json || session.scenario || null,
+              branding: session.branding || null,
+            });
 
-        initialized = true;
+            initialized = true;
+          })
+          .catch(function(err) {
+            renderFallback('session_failure', err);
+          });
       } catch (err) {
         renderFallback('session_failure', err);
       }
