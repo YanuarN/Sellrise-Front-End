@@ -18,6 +18,8 @@ const KnowledgeBase   = lazy(() => import('./pages/KnowledgeBase/KnowledgeBase')
 const Analytics       = lazy(() => import('./pages/Analytics/Analytics'));
 const Domains         = lazy(() => import('./pages/Domains/Domains'));
 const Settings        = lazy(() => import('./pages/Settings/Settings'));
+const WidgetSettings  = lazy(() => import('./pages/WidgetSettings'));
+const WidgetPreview   = lazy(() => import('./pages/WidgetPreview'));
 
 function AppRoutes() {
   const fetchUser = useAuthStore((s) => s.fetchUser);
@@ -44,6 +46,9 @@ function AppRoutes() {
       <Route path="/analytics" element={<ProtectedRoute><MainLayout><Analytics /></MainLayout></ProtectedRoute>} />
       <Route path="/domains" element={<ProtectedRoute><MainLayout><Domains /></MainLayout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><MainLayout><Settings /></MainLayout></ProtectedRoute>} />
+      <Route path="/widget-settings" element={<ProtectedRoute><MainLayout><WidgetSettings /></MainLayout></ProtectedRoute>} />
+      <Route path="/preview/widget/:workspaceId" element={<ProtectedRoute><WidgetPreview /></ProtectedRoute>} />
+      <Route path="/preview/widget" element={<ProtectedRoute><WidgetPreview /></ProtectedRoute>} />
 
       {/* Redirects */}
       <Route path="/crm" element={<Navigate to="/pipeline" replace />} />
