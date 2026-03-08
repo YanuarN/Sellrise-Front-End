@@ -5,6 +5,7 @@ import { Button } from '../Button';
 import { Card } from '../Card';
 import CodeBlock from '../CodeBlock/CodeBlock';
 import DomainManagement from '../DomainManagement/DomainManagement';
+import WidgetSimulator from '../WidgetSimulator/WidgetSimulator';
 
 function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My Workspace' }) {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
   const [displayMode, setDisplayMode] = useState('bubble'); // bubble or inline
   const [fallbackMessage, setFallbackMessage] = useState('Please leave your details and our team will contact you shortly.');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [domains, setDomains] = useState(['example.com', 'yourdomain.com']);
 
   // Generate embed snippet based on workspace
@@ -171,6 +173,10 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
 
   const handlePreviewWidget = () => {
     navigate(`/preview/widget/${workspaceId}`);
+  };
+
+  const handleOpenSimulator = () => {
+    setIsSimulatorOpen(true);
   };
 
   return (
@@ -386,7 +392,7 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
             </p>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" onClick={handleOpenSimulator}>
               🧪 Test in Simulator
             </Button>
             <Button 
@@ -407,6 +413,13 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
         domains={domains}
         onAddDomain={handleAddDomain}
         onRemoveDomain={handleRemoveDomain}
+      />
+
+      <WidgetSimulator
+        isOpen={isSimulatorOpen}
+        onClose={() => setIsSimulatorOpen(false)}
+        workspaceName={workspaceName}
+        fallbackMessage={fallbackMessage}
       />
     </div>
   );
