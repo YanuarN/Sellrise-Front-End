@@ -5,6 +5,7 @@ import LandingPage from './pages/LandingPage/LandingPage';
 import Login from './pages/Auth/Login';
 import Dashboard from './pages/Dashboard';
 import WidgetSettings from './pages/WidgetSettings';
+import WidgetPreview from './pages/WidgetPreview';
 
 function App() {
   return (
@@ -38,6 +39,14 @@ function App() {
               <WidgetSettings />
             </MainLayout>
           }
+        />
+        <Route
+          path="/preview/widget/:workspaceId"
+          element={<WidgetPreview />}
+        />
+        <Route
+          path="/preview/widget"
+          element={<WidgetPreview />}
         />
         {/* Default redirect for unhandled auth routes */}
         <Route path="*" element={<Navigate to="/" replace />} />

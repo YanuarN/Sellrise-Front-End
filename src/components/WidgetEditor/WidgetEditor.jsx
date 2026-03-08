@@ -1,13 +1,18 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Copy, Check } from 'lucide-react';
 import { Button } from '../Button';
 import { Card } from '../Card';
 import CodeBlock from '../CodeBlock/CodeBlock';
+import DomainManagement from '../DomainManagement/DomainManagement';
 
 function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My Workspace' }) {
+  const navigate = useNavigate();
   const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState(false);
   const [displayMode, setDisplayMode] = useState('bubble'); // bubble or inline
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [domains, setDomains] = useState(['example.com', 'yourdomain.com']);
 
   // Generate embed snippet based on workspace
   const generateSnippet = () => {
@@ -35,6 +40,18 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
     } catch (err) {
       console.error('Failed to copy:', err);
     }
+  };
+
+  const handleAddDomain = (domain) => {
+    setDomains([...domains, domain]);
+  };
+
+  const handleRemoveDomain = (domain) => {
+    setDomains(domains.filter(d => d !== domain));
+  };
+
+  const handlePreviewWidget = () => {
+    navigate(`/preview/widget/${workspaceId}`);
   };
 
   return (
@@ -189,7 +206,23 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
               Configure which domains can load this widget
             </p>
           </div>
-          <Button variant="outline" className="w-full justify-start gap-2">
+          {domains.length > 0 && (
+            <div className="rounded-lg bg-green-50 p-3 border border-green-200">
+              <p className="text-sm text-green-900 font-medium mb-2">✅ {domains.length} domain(s) registered:</p>
+              <div className="flex flex-wrap gap-2">
+                {domains.map(domain => (
+                  <span key={domain} className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">
+                    {domain}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          <Button 
+            variant="outline" 
+            className="w-full justify-start gap-2"
+            onClick={() => setIsModalOpen(true)}
+          >
             ⚙️ Manage Domains
           </Button>
           <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
@@ -211,12 +244,25 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
             <Button variant="outline" className="gap-2">
               🧪 Test in Simulator
             </Button>
-            <Button variant="outline" className="gap-2">
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={handlePreviewWidget}
+            >
               👁️ Preview Widget
             </Button>
           </div>
         </div>
       </Card>
+
+      {/* Domain Management Modal */}
+      <DomainManagement 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        domains={domains}
+        onAddDomain={handleAddDomain}
+        onRemoveDomain={handleRemoveDomain}
+      />
     </div>
   );
 }
