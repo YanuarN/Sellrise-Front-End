@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     Briefcase,
     MessageSquare,
@@ -11,19 +12,38 @@ import {
     MessageCircleQuestion,
     Bot,
     ScanLine,
-    Wallet
+    Wallet,
+    LayoutDashboard
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
+    const location = useLocation();
+    const navigate = useNavigate();
     const [activeItem, setActiveItem] = useState('CRM');
 
     const menuItems = [
-        { name: 'Analytics', icon: PieChart },
-        { name: 'Chats', icon: MessageSquare },
-        { name: 'CRM', icon: Users },
-        { name: 'Integrations', icon: ScanLine },
-        { name: 'Plans & Billing', icon: Wallet },
+        { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+        { name: 'Analytics', icon: PieChart, path: '/analytics' },
+        { name: 'Chats', icon: MessageSquare, path: '/chats' },
+        { name: 'CRM', icon: Users, path: '/crm' },
+        { name: 'Integrations', icon: ScanLine, path: '/integrations' },
+        { name: 'Plans & Billing', icon: Wallet, path: '/billing' },
     ];
+
+    useEffect(() => {
+        const currentPath = location.pathname;
+        const currentItem = menuItems.find(item => item.path === currentPath);
+        if (currentItem) {
+            setActiveItem(currentItem.name);
+        }
+    }, [location.pathname]);
+
+    const handleNavigation = (item) => {
+        setActiveItem(item.name);
+        if (item.path) {
+            navigate(item.path);
+        }
+    };
 
     return (
         <div
@@ -68,7 +88,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         return (
                             <button
                                 key={item.name}
-                                onClick={() => setActiveItem(item.name)}
+                                onClick={() => handleNavigation(item)}
                                 title={item.name}
                                 className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all ${isActive
                                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
@@ -83,7 +103,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                     return (
                         <button
                             key={item.name}
-                            onClick={() => setActiveItem(item.name)}
+                            onClick={() => handleNavigation(item)}
                             className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-medium transition-all ${isActive
                                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
                                 : 'text-gray-400 hover:bg-[#252b41] hover:text-gray-200'
