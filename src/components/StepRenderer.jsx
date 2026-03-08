@@ -16,7 +16,7 @@
 
 import { useState, useEffect } from 'react';
 import { Send, ExternalLink, User } from 'lucide-react';
-import { Button } from '../../components';
+import Button from './Button';
 
 const StepRenderer = ({
   step,
