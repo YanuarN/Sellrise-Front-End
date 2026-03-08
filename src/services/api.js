@@ -119,6 +119,75 @@ class ApiClient {
   delete(endpoint) {
     return this.request(endpoint, { method: 'DELETE' });
   }
+
+  /**
+   * Scenarios API
+   */
+  scenarios = {
+    list: () => this.get('/v1/scenarios'),
+
+    get: (id) => this.get(`/v1/scenarios/${id}`),
+
+    create: (data) => this.post('/v1/scenarios', data),
+
+    update: (id, data) => this.patch(`/v1/scenarios/${id}`, data),
+
+    publish: (id) => this.post(`/v1/scenarios/${id}/publish`),
+  };
+
+  /**
+   * Knowledge Base API
+   */
+  kb = {
+    articles: {
+      list: (params) => this.get('/v1/kb/articles', params),
+
+      get: (id) => this.get(`/v1/kb/articles/${id}`),
+
+      create: (data) => this.post('/v1/kb/articles', data),
+
+      update: (id, data) => this.patch(`/v1/kb/articles/${id}`, data),
+
+      delete: (id) => this.delete(`/v1/kb/articles/${id}`),
+    },
+  };
+
+  /**
+   * LLM Enhancement API (OpenRouter via backend)
+   */
+  llm = {
+    enhance: (data) => this.post('/v1/llm/enhance', data),
+
+    generateConfig: (data) => this.post('/v1/llm/generate-config', data),
+  };
+
+  /**
+   * File Upload API
+   */
+  async uploadFile(file, type = 'attachment') {
+    const token = this.getAccessToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', type);
+
+    const response = await fetch(`${this.baseURL}/v1/files/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'File upload failed' }));
+      const err = new Error(error.detail || 'File upload failed');
+      err.status = response.status;
+      throw err;
+    }
+
+    return response.json();
+  }
 }
 
 const api = new ApiClient(API_BASE_URL);
