@@ -20,6 +20,7 @@ const Domains         = lazy(() => import('./pages/Domains/Domains'));
 const Settings        = lazy(() => import('./pages/Settings/Settings'));
 const WidgetSettings  = lazy(() => import('./pages/WidgetSettings'));
 const WidgetPreview   = lazy(() => import('./pages/WidgetPreview'));
+const ScenarioConfiguration = lazy(() => import('./pages/ScenarioConfiguration'));
 
 function AppRoutes() {
   const fetchUser = useAuthStore((s) => s.fetchUser);
@@ -42,6 +43,7 @@ function AppRoutes() {
       <Route path="/pipeline" element={<ProtectedRoute><MainLayout><LeadManagement /></MainLayout></ProtectedRoute>} />
       <Route path="/leads" element={<ProtectedRoute><MainLayout><Leads /></MainLayout></ProtectedRoute>} />
       <Route path="/scenarios" element={<ProtectedRoute><MainLayout><Scenarios /></MainLayout></ProtectedRoute>} />
+      <Route path="/scenario-config" element={<ProtectedRoute><MainLayout><ScenarioConfiguration /></MainLayout></ProtectedRoute>} />
       <Route path="/knowledge-base" element={<ProtectedRoute><MainLayout><KnowledgeBase /></MainLayout></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute><MainLayout><Analytics /></MainLayout></ProtectedRoute>} />
       <Route path="/domains" element={<ProtectedRoute><MainLayout><Domains /></MainLayout></ProtectedRoute>} />
