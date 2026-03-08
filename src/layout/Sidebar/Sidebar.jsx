@@ -4,35 +4,43 @@ import {
     Briefcase,
     MessageSquare,
     Users,
-    GitMerge,
-    CreditCard,
     ChevronDown,
     ChevronRight,
     PieChart,
     MessageCircleQuestion,
     Bot,
-    ScanLine,
-    Wallet,
-    LayoutDashboard
+    LayoutDashboard,
+    Inbox,
+    KanbanSquare,
+    BookOpen,
+    Globe,
+    Settings,
+    LogOut
 } from 'lucide-react';
+import useAuthStore from '../../stores/authStore';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const [activeItem, setActiveItem] = useState('CRM');
+    const [activeItem, setActiveItem] = useState('Dashboard');
+    const user = useAuthStore((s) => s.user);
+    const logout = useAuthStore((s) => s.logout);
 
     const menuItems = [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+        { name: 'Inbox', icon: Inbox, path: '/inbox' },
+        { name: 'Pipeline', icon: KanbanSquare, path: '/pipeline' },
+        { name: 'Leads', icon: Users, path: '/leads' },
+        { name: 'Scenarios', icon: Bot, path: '/scenarios' },
+        { name: 'Knowledge Base', icon: BookOpen, path: '/knowledge-base' },
         { name: 'Analytics', icon: PieChart, path: '/analytics' },
-        { name: 'Chats', icon: MessageSquare, path: '/chats' },
-        { name: 'CRM', icon: Users, path: '/crm' },
-        { name: 'Integrations', icon: ScanLine, path: '/integrations' },
-        { name: 'Plans & Billing', icon: Wallet, path: '/billing' },
+        { name: 'Domains', icon: Globe, path: '/domains' },
+        { name: 'Settings', icon: Settings, path: '/settings' },
     ];
 
     useEffect(() => {
         const currentPath = location.pathname;
-        const currentItem = menuItems.find(item => item.path === currentPath);
+        const currentItem = menuItems.find(item => currentPath.startsWith(item.path));
         if (currentItem) {
             setActiveItem(currentItem.name);
         }
@@ -118,42 +126,41 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 })}
             </nav>
 
-            {/* Support / Chat Icon at bottom for collapsed state */}
+            {/* Support / Logout for collapsed state */}
             {!isOpen && (
                 <div className="mt-auto mb-6 flex flex-col items-center gap-2 w-full">
-                    <button className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[#1a1f33] border border-[#2a3045] text-gray-400 hover:text-white transition-colors group relative">
-                        <MessageCircleQuestion className="w-5 h-5" />
-
-                        {/* Tooltip or small text below */}
+                    <button
+                        onClick={async () => { await logout(); navigate('/login'); }}
+                        className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[#1a1f33] border border-[#2a3045] text-gray-400 hover:text-red-400 transition-colors group relative"
+                    >
+                        <LogOut className="w-5 h-5" />
                         <div className="absolute -bottom-6 w-max opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="text-[10px] text-gray-500">Support</span>
+                            <span className="text-[10px] text-gray-500">Logout</span>
                         </div>
                     </button>
                 </div>
             )}
 
-            {/* Upgrade Banner for expanded state */}
+            {/* User Info + Logout for expanded state */}
             {isOpen && (
-                <div className="mt-auto mb-6 bg-gradient-to-br from-[#262c40] to-[#1e2336] p-5 rounded-3xl border border-gray-700/50 relative overflow-hidden mx-1 shadow-xl">
-                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl"></div>
-
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center mb-4 text-white shadow-lg shadow-blue-500/30">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M4 8H20C21.1046 8 22 8.89543 22 10V18C22 19.1046 21.1046 20 20 20H4C2.89543 20 2 19.1046 2 18V10C2 8.89543 2.89543 8 4 8Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M8 8V6C8 4.89543 8.89543 4 10 4H14C15.1046 4 16 4.89543 16 6V8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M12 12V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M10 14H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                <div className="mt-auto mb-6 mx-1">
+                    {/* User profile */}
+                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-[#1a1f33] border border-[#2a3045] mb-3">
+                        <div className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20">
+                            {(user?.full_name || 'U')[0].toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h2 className="text-white font-medium text-sm truncate">{user?.full_name || 'User'}</h2>
+                            <p className="text-xs text-gray-400 truncate mt-0.5 capitalize">{user?.role || 'viewer'}</p>
+                        </div>
                     </div>
 
-                    <h3 className="text-white font-semibold mb-1.5 text-[15px]">Upgrade to Pro</h3>
-                    <p className="text-xs text-gray-400 mb-5 leading-relaxed">
-                        Get access to all features on sellrise
-                    </p>
-
-                    <button className="w-full py-2.5 px-4 rounded-xl bg-transparent border border-gray-600/60 text-white text-sm font-medium flex items-center justify-between hover:bg-white/5 transition-colors group">
-                        Get Pro
-                        <span className="text-lg leading-none group-hover:translate-x-1 transition-transform">→</span>
+                    <button
+                        onClick={async () => { await logout(); navigate('/login'); }}
+                        className="w-full py-2.5 px-4 rounded-xl bg-transparent border border-[#2a3045] text-gray-400 text-sm font-medium flex items-center justify-center gap-2 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 transition-colors"
+                    >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
                     </button>
                 </div>
             )}
