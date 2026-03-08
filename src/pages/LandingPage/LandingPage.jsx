@@ -555,10 +555,6 @@ export default function LandingPage() {
                     <div className="border-t border-slate-800/60 pt-12 pb-16 flex flex-col md:flex-row justify-between items-start gap-12 md:gap-8">
                         {/* Logo & Contact */}
                         <div className="space-y-6">
-<<<<<<< HEAD
-                            <div className="flex items-center gap-2">
-                                <img src={Logo} alt="Sellrise logo" className="h-8 w-auto object-contain" />
-=======
                             <div className="flex items-center gap-1">
                                 <span className="font-extrabold text-2xl tracking-tighter text-white">se</span>
                                 <div className="w-5 h-5 bg-blue-600 rounded-md transform rotate-12 flex items-center justify-center mt-1">
@@ -568,7 +564,6 @@ export default function LandingPage() {
                                     </div>
                                 </div>
                                 <span className="font-extrabold text-2xl tracking-tighter text-white">rise.ai</span>
->>>>>>> 0b8cd79 (feat: add LandingPage component with assets and layout for the homepage)
                             </div>
                             <p className="text-[15px] font-medium text-slate-300">hello@sellrise.ai</p>
 
