@@ -1,12 +1,24 @@
 import api from './api';
 
 const leadService = {
-  async getLeads({ page = 1, pageSize = 10, stage, score, search } = {}) {
-    return api.get('/v1/leads', { page, page_size: pageSize, stage, score, search });
+  async getLeads({ page = 1, pageSize = 10, stage, score, search, inbox } = {}) {
+    return api.get('/v1/leads', {
+      page,
+      page_size: pageSize,
+      stage,
+      score,
+      search,
+      ...(inbox ? { inbox: true } : {}),
+    });
   },
 
   async getLead(leadId) {
     return api.get(`/v1/leads/${leadId}`);
+  },
+
+  async getLeadEvents(leadId) {
+    // Lead detail already includes events; this is a convenience wrapper
+    return api.get(`/v1/leads/${leadId}`).then((r) => r.events ?? []);
   },
 
   async updateLead(leadId, data) {

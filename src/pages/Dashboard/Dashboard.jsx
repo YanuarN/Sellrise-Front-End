@@ -56,7 +56,7 @@ function Dashboard() {
   const userName = user?.full_name?.split(' ')[0] || 'there';
 
   return (
-    <div className="h-full bg-[#FAFCFF] p-6 md:p-8 space-y-8 overflow-auto selection:bg-blue-100">
+    <div className="h-full bg-[#FAFCFF] p-6 md:p-8 space-y-8 overflow-auto no-scrollbar selection:bg-blue-100">
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 animate-[fadeIn_0.5s_ease-out]">
@@ -223,9 +223,9 @@ function Dashboard() {
                     </div>
                   </div>
                   <div className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider
-                     ${lead.score === 'hot' ? 'bg-rose-100 text-rose-600' : 
-                       lead.score === 'warm' ? 'bg-orange-100 text-orange-600' : 
-                       'bg-blue-100 text-blue-600'}`}>
+                     ${lead.score === 'hot' ? 'bg-rose-100 text-rose-600' :
+                      lead.score === 'warm' ? 'bg-orange-100 text-orange-600' :
+                        'bg-blue-100 text-blue-600'}`}>
                     {lead.score || 'cold'}
                   </div>
                 </div>

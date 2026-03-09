@@ -11,7 +11,7 @@ const MainLayout = ({ children }) => {
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Header container can go here if needed in the future */}
 
-                <main className="flex-1 overflow-auto p-6 bg-white min-h-0">
+                <main className="flex-1 overflow-auto p-6 bg-white min-h-0 no-scrollbar">
                     {children}
                 </main>
             </div>
