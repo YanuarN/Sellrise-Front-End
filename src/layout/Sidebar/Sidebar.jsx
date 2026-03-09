@@ -57,7 +57,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
     return (
         <div
-            className={`${isOpen ? 'w-[260px]' : 'w-[88px]'} bg-[#121626] text-gray-400 h-screen flex flex-col py-6 px-4 transition-all duration-300 ease-in-out relative z-10 shrink-0 border-r border-[#1e2336]`}
+            className={`${isOpen ? 'w-[260px]' : 'w-[88px]'} bg-[#121626] text-gray-400 h-screen flex flex-col py-6 px-4 transition-all duration-300 ease-in-out relative z-10 shrink-0 border-r border-[#1e2336] overflow-y-auto no-scrollbar`}
         >
             {/* Project Selector */}
             <div className={`flex items-center gap-3 rounded-2xl bg-gradient-to-b from-[#252b41] to-[#1a1f33] mb-8 cursor-pointer hover:brightness-110 transition-all ${isOpen ? 'p-3 mx-1' : 'w-14 h-14 mx-auto justify-center'}`}>
