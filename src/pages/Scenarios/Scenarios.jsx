@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Loader2, X, Send, Pencil } from 'lucide-react';
-import { Button, Input, PageHeader, ScenarioCard } from '../../components';
+import { Plus, Search, Loader2, X } from 'lucide-react';
+import { Button, Input, PageHeader, ScenarioCard, ScenarioSimulator } from '../../components';
 import { scenarioService } from '../../services';
 import useAuthStore from '../../stores/authStore';
 
@@ -13,7 +13,7 @@ export default function Scenarios() {
   const [editingScenario, setEditingScenario] = useState(null);
   const [formData, setFormData] = useState({ name: '', description: '', config: '{}' });
   const [saving, setSaving] = useState(false);
-  const [publishing, setPublishing] = useState(null);
+  const [simulatingScenario, setSimulatingScenario] = useState(null);
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'admin';
 
@@ -86,14 +86,21 @@ export default function Scenarios() {
   };
 
   const handlePublish = async (id) => {
-    setPublishing(id);
     try {
       await scenarioService.publishScenario(id);
       fetchScenarios();
     } catch (err) {
       console.error('Failed to publish scenario:', err);
-    } finally {
-      setPublishing(null);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this scenario?')) return;
+    try {
+      await scenarioService.deleteScenario(id);
+      setScenarios((prev) => prev.filter((s) => s.id !== id));
+    } catch (err) {
+      console.error('Failed to delete scenario:', err);
     }
   };
 
@@ -159,12 +166,23 @@ export default function Scenarios() {
               title={scenario.name}
               description={scenario.description || 'No description'}
               status={scenario.is_published ? `Published (v${scenario.version || 1})` : `Draft (v${scenario.version || 1})`}
+              isPublished={!!scenario.is_published}
               lastModified={formatDate(scenario.updated_at)}
               onEdit={isAdmin ? () => handleEdit(scenario) : undefined}
-              onSimulate={isAdmin ? () => handlePublish(scenario.id) : undefined}
+              onPublish={isAdmin && !scenario.is_published ? () => handlePublish(scenario.id) : undefined}
+              onSimulate={() => setSimulatingScenario(scenario)}
+              onDelete={isAdmin ? () => handleDelete(scenario.id) : undefined}
             />
           ))}
         </div>
+      )}
+
+      {/* Scenario Simulator */}
+      {simulatingScenario && (
+        <ScenarioSimulator
+          scenario={simulatingScenario}
+          onClose={() => setSimulatingScenario(null)}
+        />
       )}
 
       {/* Create / Edit Modal */}
@@ -210,7 +228,7 @@ export default function Scenarios() {
                   value={formData.config}
                   onChange={(e) => setFormData({ ...formData, config: e.target.value })}
                   className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none h-32"
-                  placeholder='{"steps": []}'
+                  placeholder='{"stages": []}'
                 />
               </div>
             </div>

@@ -11,3 +11,4 @@ export { default as KBArticleItem } from './KBArticleItem';
 export { default as SettingsNavItem } from './SettingsNavItem';
 export { default as ProtectedRoute } from './ProtectedRoute';
 export { default as StepRenderer } from './StepRenderer';
+export { default as ScenarioSimulator } from './ScenarioSimulator';

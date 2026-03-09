@@ -133,8 +133,9 @@ class ApiClient {
     update: (id, data) => this.patch(`/v1/scenarios/${id}`, data),
 
     publish: (id) => this.post(`/v1/scenarios/${id}/publish`),
-  };
 
+    deleteScenario: (id) => this.delete(`/v1/scenarios/${id}`),
+  };
   /**
    * Knowledge Base API
    */
