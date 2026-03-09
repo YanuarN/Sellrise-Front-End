@@ -121,6 +121,28 @@ class ApiClient {
   }
 
   /**
+   * Conversations API  (US-4.5)
+   *
+   * POST /v1/conversations              – start a new conversation session
+   * GET  /v1/conversations/:id          – fetch conversation state
+   * POST /v1/conversations/:id/steps    – execute one conversation step (send msg, get reply)
+   */
+  conversations = {
+    create: (data) => this.post('/v1/conversations', data),
+
+    get: (id) => this.get(`/v1/conversations/${id}`),
+
+    /**
+     * Execute one step (send a user message and receive a bot reply).
+     * @param {string} id      – conversation ID
+     * @param {string} message – user message text
+     * @param {Object} slots   – current slot state (optional)
+     */
+    step: (id, message, slots = {}) =>
+      this.post(`/v1/conversations/${id}/steps`, { message, slots }),
+  };
+
+  /**
    * Scenarios API
    */
   scenarios = {

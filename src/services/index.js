@@ -7,3 +7,4 @@ export { default as analyticsService } from './analyticsService';
 export { default as domainService } from './domainService';
 export { default as workspaceService } from './workspaceService';
 export { default as userService } from './userService';
+export { default as conversationService } from './conversationService';
