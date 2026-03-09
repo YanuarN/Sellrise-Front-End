@@ -1,12 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Copy, Check } from 'lucide-react';
 import { Button } from '../Button';
 import { Card } from '../Card';
 import CodeBlock from '../CodeBlock/CodeBlock';
-import DomainManagement from '../DomainManagement/DomainManagement';
 import WidgetSimulator from '../WidgetSimulator/WidgetSimulator';
-import domainService from '../../services/domainService';
 
 function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My Workspace' }) {
   const navigate = useNavigate();
@@ -14,28 +12,7 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
   const [copied, setCopied] = useState(false);
   const [displayMode, setDisplayMode] = useState('bubble'); // bubble or inline
   const [fallbackMessage, setFallbackMessage] = useState('Please leave your details and our team will contact you shortly.');
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
-  // domainObjects: array of { id, domain } from the API
-  const [domainObjects, setDomainObjects] = useState([]);
-  const [domainsLoading, setDomainsLoading] = useState(false);
-  const [domainsError, setDomainsError] = useState(null);
-
-  // Fetch domains from API on mount
-  useEffect(() => {
-    if (!workspaceId || workspaceId === 'workspace_demo_123') return;
-    setDomainsLoading(true);
-    domainService.getDomains()
-      .then((data) => {
-        setDomainObjects(Array.isArray(data) ? data : []);
-        setDomainsError(null);
-      })
-      .catch(() => setDomainsError('Failed to load domains'))
-      .finally(() => setDomainsLoading(false));
-  }, [workspaceId]);
-
-  // Domain strings for DomainManagement UI
-  const domains = domainObjects.map((d) => d.domain);
 
   // Generate embed snippet based on workspace
   const generateSnippet = () => {
@@ -209,26 +186,6 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
-    }
-  };
-
-  const handleAddDomain = async (domain) => {
-    try {
-      const created = await domainService.addDomain(domain);
-      setDomainObjects((prev) => [...prev, created]);
-    } catch (err) {
-      console.error('Failed to add domain:', err);
-    }
-  };
-
-  const handleRemoveDomain = async (domainStr) => {
-    const obj = domainObjects.find((d) => d.domain === domainStr);
-    if (!obj) return;
-    try {
-      await domainService.removeDomain(obj.id);
-      setDomainObjects((prev) => prev.filter((d) => d.id !== obj.id));
-    } catch (err) {
-      console.error('Failed to remove domain:', err);
     }
   };
 
@@ -409,48 +366,6 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
         </div>
       </Card>
 
-      {/* Domain Configuration Info */}
-      <Card>
-        <div className="space-y-3">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">Domain Configuration</h3>
-            <p className="mt-1 text-sm text-gray-600">
-              Configure which domains can load this widget
-            </p>
-          </div>
-          {domainsError && (
-            <div className="rounded-lg bg-red-50 p-3 border border-red-200">
-              <p className="text-sm text-red-800">⚠️ {domainsError}</p>
-            </div>
-          )}
-          {domainsLoading && (
-            <p className="text-sm text-gray-500">Loading domains...</p>
-          )}
-          {!domainsLoading && !domainsError && domains.length > 0 && (
-            <div className="rounded-lg bg-green-50 p-3 border border-green-200">
-              <p className="text-sm text-green-900 font-medium mb-2">✅ {domains.length} domain(s) registered:</p>
-              <div className="flex flex-wrap gap-2">
-                {domains.map(domain => (
-                  <span key={domain} className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">
-                    {domain}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2"
-            onClick={() => setIsModalOpen(true)}
-          >
-            ⚙️ Manage Domains
-          </Button>
-          <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
-            Register your domain in settings to enable the widget. The widget validates the domain origin for security.
-          </div>
-        </div>
-      </Card>
-
       {/* Preview & Testing */}
       <Card>
         <div className="space-y-4">
@@ -474,15 +389,6 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
           </div>
         </div>
       </Card>
-
-      {/* Domain Management Modal */}
-      <DomainManagement
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        domains={domains}
-        onAddDomain={handleAddDomain}
-        onRemoveDomain={handleRemoveDomain}
-      />
 
       {isSimulatorOpen && (
         <WidgetSimulator
