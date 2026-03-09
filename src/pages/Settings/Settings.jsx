@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, Shield, Bell, Users, CreditCard, Loader2 } from 'lucide-react';
 import { Button, PageHeader, SettingsNavItem } from '../../components';
 import useAuthStore from '../../stores/authStore';
+import { workspaceService, userService } from '../../services';
 
 const NAV_ITEMS = [
     { key: 'workspace', label: 'Workspace', icon: SettingsIcon },
+    { key: 'team', label: 'Team', icon: Users },
     { key: 'profile', label: 'My Profile', icon: Users },
     { key: 'security', label: 'Security', icon: Shield },
     { key: 'notifications', label: 'Notifications', icon: Bell },
@@ -13,8 +15,106 @@ const NAV_ITEMS = [
 
 export default function Settings() {
     const [activeNav, setActiveNav] = useState('workspace');
+    const [workspace, setWorkspace] = useState(null);
+    const [workspaceName, setWorkspaceName] = useState('');
+    const [loadingWorkspace, setLoadingWorkspace] = useState(true);
+    const [savingWorkspace, setSavingWorkspace] = useState(false);
+    const [workspaceMessage, setWorkspaceMessage] = useState('');
+
+    const [users, setUsers] = useState([]);
+    const [loadingUsers, setLoadingUsers] = useState(true);
+    const [usersError, setUsersError] = useState('');
+    const [updatingUserId, setUpdatingUserId] = useState('');
+
     const user = useAuthStore((s) => s.user);
-    const logout = useAuthStore((s) => s.logout);
+    const isAdmin = user?.role === 'admin';
+
+    useEffect(() => {
+        const fetchWorkspace = async () => {
+            setLoadingWorkspace(true);
+            setWorkspaceMessage('');
+            try {
+                let data = null;
+                if (user?.workspace_id) {
+                    data = await workspaceService.getWorkspace(user.workspace_id);
+                } else {
+                    data = await workspaceService.getCurrentWorkspace();
+                }
+                setWorkspace(data);
+                setWorkspaceName(data?.name || '');
+            } catch (err) {
+                setWorkspaceMessage(err.message || 'Failed to load workspace details.');
+            } finally {
+                setLoadingWorkspace(false);
+            }
+        };
+
+        const fetchUsers = async () => {
+            setLoadingUsers(true);
+            setUsersError('');
+            try {
+                const data = await userService.listUsers();
+                setUsers(Array.isArray(data) ? data : []);
+            } catch (err) {
+                setUsersError(err.message || 'Failed to load team members.');
+            } finally {
+                setLoadingUsers(false);
+            }
+        };
+
+        fetchWorkspace();
+        fetchUsers();
+    }, [user?.workspace_id]);
+
+    const handleSaveWorkspace = async () => {
+        if (!workspace?.id || !workspaceName.trim()) return;
+
+        setSavingWorkspace(true);
+        setWorkspaceMessage('');
+
+        try {
+            const updated = await workspaceService.updateWorkspace(workspace.id, {
+                name: workspaceName.trim(),
+            });
+            setWorkspace(updated);
+            setWorkspaceName(updated.name);
+            setWorkspaceMessage('Workspace updated successfully.');
+        } catch (err) {
+            setWorkspaceMessage(err.message || 'Failed to update workspace.');
+        } finally {
+            setSavingWorkspace(false);
+        }
+    };
+
+    const handleRoleChange = async (targetUserId, role) => {
+        setUpdatingUserId(targetUserId);
+        setUsersError('');
+
+        try {
+            const updated = await userService.updateUser(targetUserId, { role });
+            setUsers((prev) => prev.map((u) => (u.id === targetUserId ? { ...u, role: updated.role } : u)));
+        } catch (err) {
+            setUsersError(err.message || 'Failed to update user role.');
+        } finally {
+            setUpdatingUserId('');
+        }
+    };
+
+    const handleDeactivateUser = async (targetUserId) => {
+        if (!confirm('Deactivate this user?')) return;
+
+        setUpdatingUserId(targetUserId);
+        setUsersError('');
+
+        try {
+            await userService.deactivateUser(targetUserId);
+            setUsers((prev) => prev.map((u) => (u.id === targetUserId ? { ...u, is_active: false } : u)));
+        } catch (err) {
+            setUsersError(err.message || 'Failed to deactivate user.');
+        } finally {
+            setUpdatingUserId('');
+        }
+    };
 
     return (
         <div className="flex flex-col h-full bg-slate-50 rounded-2xl p-8 overflow-hidden">
@@ -47,25 +147,108 @@ export default function Settings() {
                         <div className="space-y-6 max-w-xl">
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-2">Workspace Name</label>
-                                <input type="text" defaultValue="Acme Corp Widget" className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3 shadow-sm" />
+                                <input
+                                    type="text"
+                                    value={workspaceName}
+                                    onChange={(e) => setWorkspaceName(e.target.value)}
+                                    disabled={loadingWorkspace || !isAdmin}
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3 shadow-sm"
+                                />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">Timezone</label>
-                                <select className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3 shadow-sm">
-                                    <option>UTC-08:00 Pacific Time (US &amp; Canada)</option>
-                                    <option>UTC-05:00 Eastern Time (US &amp; Canada)</option>
-                                    <option>UTC+00:00 London</option>
-                                    <option>UTC+07:00 Jakarta (WIB)</option>
-                                </select>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Workspace Slug</label>
+                                <input
+                                    type="text"
+                                    value={workspace?.slug || '—'}
+                                    readOnly
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-500 text-sm rounded-xl block p-3 shadow-sm font-mono"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Workspace ID</label>
+                                <input
+                                    type="text"
+                                    value={workspace?.id || user?.workspace_id || '—'}
+                                    readOnly
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-500 text-sm rounded-xl block p-3 shadow-sm font-mono"
+                                />
                             </div>
 
                             <div className="pt-4 flex justify-end">
-                                <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg w-32">
-                                    Save
+                                <Button
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg w-32"
+                                    onClick={handleSaveWorkspace}
+                                    disabled={!isAdmin || savingWorkspace || loadingWorkspace || !workspaceName.trim()}
+                                >
+                                    {savingWorkspace ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Save'}
                                 </Button>
                             </div>
+
+                            {workspaceMessage && (
+                                <p className={`text-sm ${workspaceMessage.toLowerCase().includes('success') ? 'text-green-600' : 'text-red-600'}`}>
+                                    {workspaceMessage}
+                                </p>
+                            )}
                         </div>
+                      </div>
+                    )}
+
+                    {activeNav === 'team' && (
+                      <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
+                        <h2 className="text-xl font-bold text-slate-800 mb-6 border-b border-slate-100 pb-4">Team Management</h2>
+
+                        {usersError && <p className="text-sm text-red-600 mb-4">{usersError}</p>}
+
+                        {loadingUsers ? (
+                            <div className="py-8 flex justify-center">
+                                <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {users.map((u) => (
+                                    <div key={u.id} className="border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                        <div>
+                                            <p className="font-semibold text-slate-800">{u.full_name || 'Unnamed User'}</p>
+                                            <p className="text-sm text-slate-500">{u.email}</p>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'}`}>
+                                                {u.is_active ? 'active' : 'inactive'}
+                                            </span>
+
+                                            <select
+                                                value={u.role}
+                                                onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                                                disabled={!isAdmin || updatingUserId === u.id || !u.is_active}
+                                                className="bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl p-2 capitalize"
+                                            >
+                                                <option value="admin">admin</option>
+                                                <option value="agent">agent</option>
+                                                <option value="viewer">viewer</option>
+                                            </select>
+
+                                            {isAdmin && u.is_active && u.id !== user?.id && (
+                                                <Button
+                                                    variant="outline"
+                                                    className="text-red-600 border-red-200 hover:bg-red-50"
+                                                    disabled={updatingUserId === u.id}
+                                                    onClick={() => handleDeactivateUser(u.id)}
+                                                >
+                                                    {updatingUserId === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Deactivate'}
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {users.length === 0 && (
+                                    <p className="text-sm text-slate-500">No users found in this workspace.</p>
+                                )}
+                            </div>
+                        )}
                       </div>
                     )}
 

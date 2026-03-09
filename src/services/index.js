@@ -5,3 +5,5 @@ export { default as scenarioService } from './scenarioService';
 export { default as kbService } from './kbService';
 export { default as analyticsService } from './analyticsService';
 export { default as domainService } from './domainService';
+export { default as workspaceService } from './workspaceService';
+export { default as userService } from './userService';
