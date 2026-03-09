@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Loader2, X, Send, Pencil } from 'lucide-react';
-import { Button, Input, PageHeader, ScenarioCard } from '../../components';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Search, Loader2, X } from 'lucide-react';
+import { Button, Input, PageHeader, ScenarioCard, ScenarioSimulator } from '../../components';
 import { scenarioService } from '../../services';
 import useAuthStore from '../../stores/authStore';
 
 export default function Scenarios() {
+  const navigate = useNavigate();
   const [scenarios, setScenarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingScenario, setEditingScenario] = useState(null);
   const [formData, setFormData] = useState({ name: '', description: '', config: '{}' });
   const [saving, setSaving] = useState(false);
-  const [publishing, setPublishing] = useState(null);
+  const [simulatingScenario, setSimulatingScenario] = useState(null);
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'admin';
 
@@ -54,47 +54,14 @@ export default function Scenarios() {
     }
   };
 
+  // Navigate to the full ScenarioConfiguration editor.
   const handleEdit = (scenario) => {
-    setEditingScenario(scenario);
-    setFormData({
-      name: scenario.name,
-      description: scenario.description || '',
-      config: JSON.stringify(scenario.config || {}, null, 2),
-    });
-    setShowEditModal(true);
+    navigate(`/scenario-config?id=${scenario.id}`);
   };
 
-  const handleUpdate = async () => {
-    if (!editingScenario) return;
-    setSaving(true);
-    try {
-      let config;
-      try { config = JSON.parse(formData.config); } catch { config = {}; }
-      await scenarioService.updateScenario(editingScenario.id, {
-        name: formData.name,
-        description: formData.description,
-        config,
-      });
-      setShowEditModal(false);
-      setEditingScenario(null);
-      fetchScenarios();
-    } catch (err) {
-      console.error('Failed to update scenario:', err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handlePublish = async (id) => {
-    setPublishing(id);
-    try {
-      await scenarioService.publishScenario(id);
-      fetchScenarios();
-    } catch (err) {
-      console.error('Failed to publish scenario:', err);
-    } finally {
-      setPublishing(null);
-    }
+  // Open the simulator popup for the selected scenario.
+  const handleSimulate = (scenario) => {
+    setSimulatingScenario(scenario);
   };
 
   const filteredScenarios = searchQuery
@@ -161,23 +128,21 @@ export default function Scenarios() {
               status={scenario.is_published ? `Published (v${scenario.version || 1})` : `Draft (v${scenario.version || 1})`}
               lastModified={formatDate(scenario.updated_at)}
               onEdit={isAdmin ? () => handleEdit(scenario) : undefined}
-              onSimulate={isAdmin ? () => handlePublish(scenario.id) : undefined}
+              onSimulate={() => handleSimulate(scenario)}
             />
           ))}
         </div>
       )}
 
-      {/* Create / Edit Modal */}
-      {(showCreateModal || showEditModal) && (
+      {/* Create Modal */}
+      {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/30" onClick={() => { setShowCreateModal(false); setShowEditModal(false); }} />
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowCreateModal(false)} />
           <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg p-8 animate-[fadeIn_0.2s_ease-out]">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-slate-800">
-                {showCreateModal ? 'New Scenario' : 'Edit Scenario'}
-              </h2>
+              <h2 className="text-xl font-bold text-slate-800">New Scenario</h2>
               <button
-                onClick={() => { setShowCreateModal(false); setShowEditModal(false); }}
+                onClick={() => setShowCreateModal(false)}
                 className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700"
               >
                 <X className="w-4 h-4" />
@@ -204,34 +169,30 @@ export default function Scenarios() {
                   placeholder="Describe what this scenario does..."
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Config (JSON)</label>
-                <textarea
-                  value={formData.config}
-                  onChange={(e) => setFormData({ ...formData, config: e.target.value })}
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none h-32"
-                  placeholder='{"steps": []}'
-                />
-              </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => { setShowCreateModal(false); setShowEditModal(false); }}
-              >
+              <Button variant="outline" onClick={() => setShowCreateModal(false)}>
                 Cancel
               </Button>
               <Button
-                onClick={showCreateModal ? handleCreate : handleUpdate}
+                onClick={handleCreate}
                 disabled={saving || !formData.name.trim()}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : (showCreateModal ? 'Create' : 'Save Changes')}
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
               </Button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Scenario Simulator */}
+      {simulatingScenario && (
+        <ScenarioSimulator
+          scenario={simulatingScenario}
+          onClose={() => setSimulatingScenario(null)}
+        />
       )}
     </div>
   );

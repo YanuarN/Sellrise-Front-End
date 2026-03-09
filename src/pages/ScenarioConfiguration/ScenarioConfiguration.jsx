@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Save, Play, Upload, Sparkles, FileJson, FileText, 
   Settings, AlertCircle, CheckCircle, Loader, Eye 
@@ -364,6 +365,7 @@ const defaultScenarioConfig = {
 };
 
 function ScenarioConfiguration() {
+  const [searchParams] = useSearchParams();
   const [scenarios, setScenarios] = useState([]);
   const [selectedScenario, setSelectedScenario] = useState(null);
   const [scenarioName, setScenarioName] = useState('');
@@ -378,10 +380,20 @@ function ScenarioConfiguration() {
   const [showPreview, setShowPreview] = useState(false);
   const [isNewScenario, setIsNewScenario] = useState(true);
 
-  // Load scenarios on mount
+  // Load all scenarios once on mount.
   useEffect(() => {
     loadScenarios();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-load a specific scenario when ?id= param is present or changes.
+  useEffect(() => {
+    const idParam = searchParams.get('id');
+    if (idParam) {
+      loadScenario(idParam);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const loadScenarios = async () => {
     try {
