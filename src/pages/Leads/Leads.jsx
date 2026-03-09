@@ -210,16 +210,6 @@ export default function Leads() {
           </div>
         </div>
       </div>
-            variant="secondary"
-            className="gap-2 shrink-0"
-            onClick={handleExportCSV}
-            disabled={exporting}
-          >
-            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4 text-gray-500" />}
-            <span className="text-gray-600">Export CSV</span>
-          </Button>
-        </div>
-      </div>
 
       {/* Filters Row */}
       {showFilters && (
