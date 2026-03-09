@@ -16,7 +16,8 @@ import {
     Globe,
     Settings,
     LogOut,
-    Code2
+    Code2,
+    Zap
 } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 
@@ -36,6 +37,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         { name: 'Knowledge Base', icon: BookOpen, path: '/knowledge-base' },
         { name: 'Analytics', icon: PieChart, path: '/analytics' },
         { name: 'Domains', icon: Globe, path: '/domains' },
+        { name: 'LLM Settings', icon: Zap, path: '/llm-settings' },
         { name: 'Widget Settings', icon: Code2, path: '/widget-settings' },
         { name: 'Settings', icon: Settings, path: '/settings' },
     ];

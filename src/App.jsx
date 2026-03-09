@@ -21,6 +21,7 @@ const Settings        = lazy(() => import('./pages/Settings/Settings'));
 const WidgetSettings  = lazy(() => import('./pages/WidgetSettings'));
 const WidgetPreview   = lazy(() => import('./pages/WidgetPreview'));
 const ScenarioConfiguration = lazy(() => import('./pages/ScenarioConfiguration'));
+const LLMSettings     = lazy(() => import('./pages/LLMSettings'));
 
 function AppRoutes() {
   const fetchUser = useAuthStore((s) => s.fetchUser);
@@ -48,6 +49,7 @@ function AppRoutes() {
       <Route path="/analytics" element={<ProtectedRoute><MainLayout><Analytics /></MainLayout></ProtectedRoute>} />
       <Route path="/domains" element={<ProtectedRoute><MainLayout><Domains /></MainLayout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><MainLayout><Settings /></MainLayout></ProtectedRoute>} />
+      <Route path="/llm-settings" element={<ProtectedRoute><MainLayout><LLMSettings /></MainLayout></ProtectedRoute>} />
       <Route path="/widget-settings" element={<ProtectedRoute><MainLayout><WidgetSettings /></MainLayout></ProtectedRoute>} />
       <Route path="/preview/widget/:workspaceId" element={<ProtectedRoute><WidgetPreview /></ProtectedRoute>} />
       <Route path="/preview/widget" element={<ProtectedRoute><WidgetPreview /></ProtectedRoute>} />
