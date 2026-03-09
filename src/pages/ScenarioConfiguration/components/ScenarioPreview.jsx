@@ -1,227 +1,227 @@
-import { useState } from 'react';
-import { X, Play, RotateCcw } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { X, Play, RotateCcw, Bot, User } from 'lucide-react';
 import { Button, Card } from '../../../components';
-import StepRenderer from '../../../components/StepRenderer';
 
+/**
+ * ScenarioPreview
+ *
+ * Local, offline preview of a stages-based scenario config.
+ * Walks through the stages in priority order, showing the first
+ * task's approved_phrase as a bot message and collecting user input.
+ *
+ * This is intentionally simple — for full AI-powered simulation use
+ * the ScenarioSimulator (available from the Scenarios list page).
+ *
+ * Props:
+ *   config  {object}   The full scenario config (stages format)
+ *   onClose {Function} Close callback
+ */
 function ScenarioPreview({ config, onClose }) {
-  const [currentStepId, setCurrentStepId] = useState(config.entry_step_id || null);
-  const [conversationHistory, setConversationHistory] = useState([]);
+  const [messages, setMessages] = useState([]);
   const [userInput, setUserInput] = useState('');
-  const [variables, setVariables] = useState({});
+  const [stageIndex, setStageIndex] = useState(0);
+  const [slots, setSlots] = useState({});
+  const [started, setStarted] = useState(false);
+  const bottomRef = useRef(null);
+  const inputRef = useRef(null);
 
-  const currentStep = config.steps?.[currentStepId];
+  // Sorted stages by priority desc.
+  const sortedStages = [...(config.stages || [])].sort(
+    (a, b) => (b.priority ?? 0) - (a.priority ?? 0),
+  );
 
+  const currentStage = sortedStages[stageIndex] ?? null;
+
+  const scrollToBottom = () =>
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Kick off the first bot message when started.
   const handleStart = () => {
-    setCurrentStepId(config.entry_step_id);
-    setConversationHistory([]);
-    setVariables({});
+    setMessages([]);
+    setSlots({});
+    setStageIndex(0);
+    setStarted(true);
+
+    const firstStage = sortedStages[0];
+    const firstTask = firstStage?.tasks?.[0];
+    const botMessage =
+      firstTask?.approved_phrases?.[0] ??
+      firstTask?.instruction ??
+      '(No opening message configured)';
+
+    setMessages([{ role: 'bot', content: botMessage, stageId: firstStage?.stage_id }]);
+    setTimeout(() => inputRef.current?.focus(), 50);
   };
 
-  const handleStepSubmit = (submission) => {
-    const { type, value } = submission;
-    
-    // Add to conversation history
-    let contentToAdd = value;
-    if (type === 'form') {
-      contentToAdd = Object.entries(value)
-        .map(([key, val]) => `${key}: ${val}`)
-        .join(', ');
-    }
-    
-    setConversationHistory(prev => [...prev, {
-      type: 'user',
-      content: contentToAdd,
-      stepId: currentStepId
-    }]);
+  const handleReset = () => {
+    setMessages([]);
+    setSlots({});
+    setStageIndex(0);
+    setStarted(false);
+    setUserInput('');
+  };
 
-    // Store variables if step has variable name
-    if (currentStep?.variable) {
-      setVariables(prev => ({
-        ...prev,
-        [currentStep.variable]: value
-      }));
-    }
-    
-    // For form steps, store all fields
-    if (type === 'form') {
-      setVariables(prev => ({
-        ...prev,
-        ...value
-      }));
-    }
+  const handleSend = () => {
+    const text = userInput.trim();
+    if (!text) return;
 
-    // Process the response based on step type
-    if (currentStep) {
-      const nextStepId = getNextStep(currentStep, value);
-      
-      if (nextStepId && config.steps[nextStepId]) {
-        setCurrentStepId(nextStepId);
-        
-        // Add bot response if it's a message step
-        const nextStep = config.steps[nextStepId];
-        if (nextStep?.type === 'message') {
-          setConversationHistory(prev => [...prev, {
-            type: 'bot',
-            content: nextStep.content,
-            stepId: nextStepId
-          }]);
-        }
-      }
+    const updatedMessages = [
+      ...messages,
+      { role: 'user', content: text },
+    ];
+
+    // Advance to next stage.
+    const nextIndex = stageIndex + 1;
+    const nextStage = sortedStages[nextIndex] ?? null;
+    const nextTask = nextStage?.tasks?.[0] ?? null;
+
+    const botReply = nextTask
+      ? nextTask.approved_phrases?.[0] ?? nextTask.instruction ?? '(Stage has no message)'
+      : '✅ Scenario complete. Thank you!';
+
+    setMessages([
+      ...updatedMessages,
+      {
+        role: 'bot',
+        content: botReply,
+        stageId: nextStage?.stage_id ?? 'end',
+      },
+    ]);
+
+    setStageIndex(nextIndex);
+    setUserInput('');
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
   };
 
-  const getNextStep = (step, response) => {
-    if (!step.next) return null;
-
-    if (typeof step.next === 'string') {
-      return step.next;
-    } else if (typeof step.next === 'object') {
-      return step.next[response] || null;
-    }
-
-    return null;
-  };
-
-  const renderCurrentStep = () => {
-    if (!currentStep) {
-      return (
-        <div className="text-center py-8">
-          <p className="text-gray-600">No step configured</p>
-          <Button variant="outline" size="sm" onClick={handleStart} className="mt-4">
-            <Play className="w-4 h-4 mr-2" />
-            Start Preview
-          </Button>
-        </div>
-      );
-    }
-
-    // For end step, show restart button
-    if (currentStep.type === 'end') {
-      return (
-        <div className="space-y-4">
-          <StepRenderer step={currentStep} onSubmit={handleStepSubmit} />
-          <Button variant="outline" size="sm" onClick={handleStart}>
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Restart
-          </Button>
-        </div>
-      );
-    }
-
-    // For message steps with next, auto-advance
-    if (currentStep.type === 'message' && currentStep.next) {
-      return (
-        <div className="space-y-4">
-          <StepRenderer step={currentStep} onSubmit={handleStepSubmit} />
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => handleStepSubmit({ type: 'message', value: 'continue' })}
-          >
-            Continue
-          </Button>
-        </div>
-      );
-    }
-
-    return <StepRenderer step={currentStep} onSubmit={handleStepSubmit} />;
-  };
+  const isEnd = started && stageIndex >= sortedStages.length;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-bold text-gray-900">Scenario Preview</h2>
-          <button
-            onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-auto p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Chat Preview */}
-            <div className="lg:col-span-2">
-              <Card className="h-full">
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">Conversation Flow</h3>
-                
-                {/* Conversation History */}
-                {conversationHistory.length > 0 && (
-                  <div className="mb-4 space-y-2 max-h-60 overflow-y-auto">
-                    {conversationHistory.map((msg, index) => (
-                      <div
-                        key={index}
-                        className={`rounded-lg p-3 ${
-                          msg.type === 'bot'
-                            ? 'bg-blue-100 text-blue-900'
-                            : 'bg-gray-100 text-gray-900 ml-8'
-                        }`}
-                      >
-                        <p className="text-sm">{msg.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Current Step */}
-                {renderCurrentStep()}
-              </Card>
-            </div>
-
-            {/* Info Sidebar */}
-            <div className="space-y-4">
-              <Card>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Current State</h3>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <span className="text-gray-600">Step ID:</span>
-                    <p className="font-mono text-xs bg-gray-100 px-2 py-1 rounded mt-1">
-                      {currentStepId || 'None'}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Step Type:</span>
-                    <p className="font-medium mt-1">{currentStep?.type || 'None'}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Messages:</span>
-                    <p className="font-medium mt-1">{conversationHistory.length}</p>
-                  </div>
-                </div>
-              </Card>
-
-              <Card>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Variables</h3>
-                {Object.keys(variables).length > 0 ? (
-                  <div className="space-y-2 text-sm">
-                    {Object.entries(variables).map(([key, value]) => (
-                      <div key={key}>
-                        <span className="text-gray-600">{key}:</span>
-                        <p className="font-medium mt-1">{String(value)}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500">No variables set</p>
-                )}
-              </Card>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleStart}
-                className="w-full"
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Restart Preview
-              </Button>
-            </div>
+        <div className="flex items-center justify-between p-5 border-b bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-xl">
+          <div className="flex items-center gap-2">
+            <Bot className="w-5 h-5" />
+            <h2 className="text-base font-semibold">Scenario Preview</h2>
+            {currentStage && (
+              <span className="ml-3 text-xs bg-white/20 rounded-full px-2.5 py-0.5 font-mono">
+                {currentStage.stage_id}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleReset}
+              className="p-1.5 rounded-lg hover:bg-white/20 transition-colors"
+              title="Restart preview"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg hover:bg-white/20 transition-colors"
+              title="Close preview"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
+
+        {/* Chat area */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-50">
+          {!started ? (
+            <div className="flex flex-col items-center justify-center h-full py-12 text-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center">
+                <Bot className="w-7 h-7 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-800">Ready to preview</p>
+                <p className="text-sm text-slate-500 mt-1">
+                  This walks through your {sortedStages.length} stage(s) locally — no AI calls are made.
+                </p>
+              </div>
+              <Button
+                onClick={handleStart}
+                className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+              >
+                <Play className="w-4 h-4" />
+                Start Preview
+              </Button>
+            </div>
+          ) : (
+            messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+              >
+                <div
+                  className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-white text-xs ${
+                    msg.role === 'user' ? 'bg-blue-500' : 'bg-indigo-600'
+                  }`}
+                >
+                  {msg.role === 'user' ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
+                </div>
+                <div
+                  className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                    msg.role === 'user'
+                      ? 'bg-blue-600 text-white rounded-tr-sm'
+                      : 'bg-white text-slate-800 shadow-sm border border-slate-100 rounded-tl-sm'
+                  }`}
+                >
+                  {msg.content}
+                </div>
+              </div>
+            ))
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input */}
+        {started && !isEnd && (
+          <div className="shrink-0 px-4 py-3 border-t bg-white flex gap-2 items-end">
+            <textarea
+              ref={inputRef}
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={1}
+              placeholder="Reply… (Enter to send)"
+              className="flex-1 resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 max-h-24 overflow-y-auto"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!userInput.trim()}
+              className="w-9 h-9 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:cursor-not-allowed flex items-center justify-center text-white transition-colors shrink-0"
+            >
+              <Play className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Slots inspector */}
+        {started && Object.keys(slots).length > 0 && (
+          <div className="shrink-0 border-t px-5 py-3 bg-slate-50">
+            <p className="text-xs font-semibold text-slate-500 mb-2">Collected Slots</p>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(slots).map(([k, v]) => (
+                <span key={k} className="text-xs bg-blue-100 text-blue-800 rounded-full px-2.5 py-1 font-mono">
+                  {k}: {String(v)}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -132,7 +132,19 @@ class ApiClient {
 
     update: (id, data) => this.patch(`/v1/scenarios/${id}`, data),
 
+    delete: (id) => this.delete(`/v1/scenarios/${id}`),
+
     publish: (id) => this.post(`/v1/scenarios/${id}/publish`),
+
+    /**
+     * Simulate a conversation turn against a published or draft scenario.
+     * @param {string} id - Scenario ID
+     * @param {string} message - The user message to send
+     * @param {Array}  history - Prior conversation history [{role, content}]
+     * @param {Object} slots   - Current slot values collected so far
+     */
+    simulate: (id, message, history = [], slots = {}) =>
+      this.post(`/v1/scenarios/${id}/simulate`, { message, history, slots }),
   };
 
   /**
