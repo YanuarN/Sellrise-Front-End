@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Copy, Check } from 'lucide-react';
 import { Button } from '../Button';
@@ -6,6 +6,7 @@ import { Card } from '../Card';
 import CodeBlock from '../CodeBlock/CodeBlock';
 import DomainManagement from '../DomainManagement/DomainManagement';
 import WidgetSimulator from '../WidgetSimulator/WidgetSimulator';
+import domainService from '../../services/domainService';
 
 function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My Workspace' }) {
   const navigate = useNavigate();
@@ -15,7 +16,26 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
   const [fallbackMessage, setFallbackMessage] = useState('Please leave your details and our team will contact you shortly.');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
-  const [domains, setDomains] = useState(['example.com', 'yourdomain.com']);
+  // domainObjects: array of { id, domain } from the API
+  const [domainObjects, setDomainObjects] = useState([]);
+  const [domainsLoading, setDomainsLoading] = useState(false);
+  const [domainsError, setDomainsError] = useState(null);
+
+  // Fetch domains from API on mount
+  useEffect(() => {
+    if (!workspaceId || workspaceId === 'workspace_demo_123') return;
+    setDomainsLoading(true);
+    domainService.getDomains()
+      .then((data) => {
+        setDomainObjects(Array.isArray(data) ? data : []);
+        setDomainsError(null);
+      })
+      .catch(() => setDomainsError('Failed to load domains'))
+      .finally(() => setDomainsLoading(false));
+  }, [workspaceId]);
+
+  // Domain strings for DomainManagement UI
+  const domains = domainObjects.map((d) => d.domain);
 
   // Generate embed snippet based on workspace
   const generateSnippet = () => {
@@ -192,12 +212,24 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
     }
   };
 
-  const handleAddDomain = (domain) => {
-    setDomains([...domains, domain]);
+  const handleAddDomain = async (domain) => {
+    try {
+      const created = await domainService.addDomain(domain);
+      setDomainObjects((prev) => [...prev, created]);
+    } catch (err) {
+      console.error('Failed to add domain:', err);
+    }
   };
 
-  const handleRemoveDomain = (domain) => {
-    setDomains(domains.filter(d => d !== domain));
+  const handleRemoveDomain = async (domainStr) => {
+    const obj = domainObjects.find((d) => d.domain === domainStr);
+    if (!obj) return;
+    try {
+      await domainService.removeDomain(obj.id);
+      setDomainObjects((prev) => prev.filter((d) => d.id !== obj.id));
+    } catch (err) {
+      console.error('Failed to remove domain:', err);
+    }
   };
 
   const handlePreviewWidget = () => {
@@ -386,7 +418,15 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
               Configure which domains can load this widget
             </p>
           </div>
-          {domains.length > 0 && (
+          {domainsError && (
+            <div className="rounded-lg bg-red-50 p-3 border border-red-200">
+              <p className="text-sm text-red-800">⚠️ {domainsError}</p>
+            </div>
+          )}
+          {domainsLoading && (
+            <p className="text-sm text-gray-500">Loading domains...</p>
+          )}
+          {!domainsLoading && !domainsError && domains.length > 0 && (
             <div className="rounded-lg bg-green-50 p-3 border border-green-200">
               <p className="text-sm text-green-900 font-medium mb-2">✅ {domains.length} domain(s) registered:</p>
               <div className="flex flex-wrap gap-2">

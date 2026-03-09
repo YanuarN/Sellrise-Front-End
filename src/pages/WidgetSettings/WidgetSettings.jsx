@@ -2,8 +2,14 @@ import { useState } from 'react';
 import { Code2, Palette, Settings as SettingsIcon } from 'lucide-react';
 import WidgetEditor from '../../components/WidgetEditor/WidgetEditor';
 import BrandingCustomizer from '../../components/BrandingCustomizer/BrandingCustomizer';
+import useAuthStore from '../../stores/authStore';
+import domainService from '../../services/domainService';
 
 function WidgetSettings() {
+  const { user } = useAuthStore();
+  const workspaceId = user?.workspace_id || '';
+  const workspaceName = user?.full_name ? `${user.full_name}'s Workspace` : 'My Workspace';
+
   const [activeTab, setActiveTab] = useState('embed');
   const [brandingConfig, setBrandingConfig] = useState({
     primaryColor: '#3b82f6',
@@ -15,6 +21,41 @@ function WidgetSettings() {
     borderRadius: '16',
     bubbleSize: 'large',
   });
+  const [isSavingBranding, setIsSavingBranding] = useState(false);
+  const [brandingSaveMsg, setBrandingSaveMsg] = useState(null);
+
+  // Persist branding to all registered domains in this workspace
+  const handleSaveBranding = async (branding) => {
+    setIsSavingBranding(true);
+    setBrandingSaveMsg(null);
+    try {
+      const domains = await domainService.getDomains();
+      if (!domains || domains.length === 0) {
+        setBrandingSaveMsg({ type: 'warn', text: 'No domains registered yet. Register a domain first.' });
+        return;
+      }
+      await Promise.all(
+        domains.map((d) =>
+          domainService.updateDomain(d.id, {
+            brand_primary_color: branding.primaryColor,
+            bubble_color: branding.bubbleColor,
+            bubble_icon: branding.bubbleIcon,
+            welcome_message: branding.welcomeMessage,
+            brand_logo_url: branding.logoUrl || null,
+            position: branding.position,
+            border_radius: branding.borderRadius,
+            bubble_size: branding.bubbleSize,
+          })
+        )
+      );
+      setBrandingSaveMsg({ type: 'success', text: '✅ Branding saved successfully.' });
+    } catch (err) {
+      setBrandingSaveMsg({ type: 'error', text: `Failed to save: ${err.message}` });
+    } finally {
+      setIsSavingBranding(false);
+      setTimeout(() => setBrandingSaveMsg(null), 4000);
+    }
+  };
 
   const tabs = [
     { id: 'embed', label: 'Embed Code', icon: Code2 },
@@ -64,19 +105,29 @@ function WidgetSettings() {
       <div className="max-w-4xl">
         {activeTab === 'embed' && (
           <WidgetEditor
-            workspaceId="workspace_abc123def456"
-            workspaceName="Sales Demo"
+            workspaceId={workspaceId}
+            workspaceName={workspaceName}
           />
         )}
 
         {activeTab === 'appearance' && (
-          <BrandingCustomizer
-            initialBranding={brandingConfig}
-            onBrandingChange={(branding) => {
-              setBrandingConfig(branding);
-              // TODO: Persist branding with backend API when endpoint is ready.
-            }}
-          />
+          <>
+            {brandingSaveMsg && (
+              <div className={`mb-4 rounded-lg p-3 text-sm ${
+                brandingSaveMsg.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
+                brandingSaveMsg.type === 'warn'    ? 'bg-amber-50 text-amber-800 border border-amber-200' :
+                'bg-red-50 text-red-800 border border-red-200'
+              }`}>
+                {brandingSaveMsg.text}
+              </div>
+            )}
+            <BrandingCustomizer
+              initialBranding={brandingConfig}
+              onBrandingChange={(branding) => setBrandingConfig(branding)}
+              onSave={handleSaveBranding}
+              isSaving={isSavingBranding}
+            />
+          </>
         )}
 
         {activeTab === 'settings' && (

@@ -3,7 +3,7 @@ import { Card } from '../Card';
 import { Button } from '../Button';
 import { RotateCcw } from 'lucide-react';
 
-function BrandingCustomizer({ initialBranding, onBrandingChange }) {
+function BrandingCustomizer({ initialBranding, onBrandingChange, onSave, isSaving = false }) {
   const defaultBranding = useMemo(() => ({
     primaryColor: '#3b82f6',
     bubbleColor: '#3b82f6',
@@ -486,6 +486,18 @@ function BrandingCustomizer({ initialBranding, onBrandingChange }) {
           <p className="text-xs text-green-800 pt-2 border-t border-green-200">
             This summary reflects your current widget appearance settings for this workspace.
           </p>
+          {onSave && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => onSave(branding)}
+                disabled={isSaving}
+                className="w-full rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800 disabled:opacity-60 transition-colors"
+              >
+                {isSaving ? 'Saving…' : '💾 Save Branding'}
+              </button>
+            </div>
+          )}
         </div>
       </Card>
     </div>

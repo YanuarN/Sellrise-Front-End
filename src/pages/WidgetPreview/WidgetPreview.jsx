@@ -11,20 +11,88 @@ function WidgetPreview() {
   // Dummy workspace ID if not provided
   const wsId = workspaceId || 'workspace_demo_123';
 
-  // Generate the embed snippet
+  // Generate the embed snippet (identical structure to WidgetEditor)
   const generateSnippet = () => {
+    const safeWsId = JSON.stringify(wsId);
+    const safeMode = JSON.stringify(displayMode);
     return `<script>
-  (function(w,d,s,o,f,js,fjs){
-    w['SellriseWidget']=o;w[o]=w[o]||function(){(w[o].q=w[o].q||[]).push(arguments)};
-    js=d.createElement(s),fjs=d.getElementsByTagName(s)[0];
-    js.id=o;js.src=f;js.async=1;fjs.parentNode.insertBefore(js,fjs);
-  }(window,document,'script','sellrise','https://cdn.sellrise.ai/widget.js'));
-  
-  sellrise('init', {
-    workspace: '${wsId}',
-    displayMode: '${displayMode}',
-    position: 'bottom-right'
-  });
+  (function(w,d){
+    var widgetMode = ${safeMode};
+    var fallbackMessage = "Please leave your details and our team will contact you shortly.";
+    var sessionEndpoint = '/v1/widget/session';
+    var fallbackEndpoint = '/v1/widget/fallback-lead';
+    var timeoutMs = 12000;
+    var initialized = false;
+    var fallbackRendered = false;
+
+    function createCorrelationId() {
+      return 'cid_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+    }
+
+    function renderFallback(reason, error) {
+      if (fallbackRendered) return;
+      fallbackRendered = true;
+      var correlationId = createCorrelationId();
+      var mount = widgetMode === 'inline' ? d.getElementById('sellrise-widget') : null;
+      if (!mount) {
+        mount = d.createElement('div');
+        mount.style.cssText = 'position:fixed;right:16px;bottom:16px;width:320px;max-width:calc(100vw - 32px);z-index:2147483646';
+        d.body.appendChild(mount);
+      }
+      mount.innerHTML = '';
+      var card = d.createElement('div');
+      card.style.cssText = "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:16px";
+      card.innerHTML = '<h4 style="margin:0 0 8px;font-size:16px;font-weight:600;color:#111827;">We are here to help</h4>' +
+        '<p style="margin:0 0 12px;font-size:14px;color:#374151;">' + fallbackMessage + '</p>' +
+        '<form id="sr-fb" style="display:grid;gap:8px">' +
+          '<input name="name" required placeholder="Your name" style="padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px"/>' +
+          '<input type="email" name="email" required placeholder="Email" style="padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px"/>' +
+          '<input name="phone" placeholder="Phone (optional)" style="padding:10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px"/>' +
+          '<button type="submit" style="padding:10px;background:#111827;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer">Submit</button>' +
+        '</form>' +
+        '<p id="sr-st" style="margin:8px 0 0;font-size:12px;color:#6b7280"></p>';
+      mount.appendChild(card);
+      var form = card.querySelector('#sr-fb'), status = card.querySelector('#sr-st');
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var fd = new FormData(form);
+        status.textContent = 'Submitting...';
+        fetch(fallbackEndpoint, { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ name:fd.get('name'), email:fd.get('email'), phone:fd.get('phone')||null,
+            reason:reason, correlation_id:correlationId, page_url:w.location.href }) })
+          .then(function(r){ if(!r.ok) throw new Error(); status.textContent='Thanks. We received your details.'; form.reset(); })
+          .catch(function(){ status.textContent='Could not submit right now. Please try again.'; });
+      });
+      console.error('[Sellrise] Fallback triggered', { reason:reason, correlation_id:correlationId });
+    }
+
+    var js = d.createElement('script');
+    js.src = 'https://cdn.sellrise.ai/widget.js';
+    js.async = true;
+
+    js.onload = function() {
+      try {
+        if (typeof w.sellrise !== 'function') { renderFallback('session_failure'); return; }
+        fetch(sessionEndpoint, { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ domain:w.location.hostname, page_url:w.location.href,
+            referrer:d.referrer||null, utm_source:new URLSearchParams(w.location.search).get('utm_source'),
+            utm_medium:new URLSearchParams(w.location.search).get('utm_medium'),
+            utm_campaign:new URLSearchParams(w.location.search).get('utm_campaign'),
+            timezone:Intl.DateTimeFormat().resolvedOptions().timeZone }) })
+          .then(function(r){ if(!r.ok) throw new Error('Session failed'); return r.json(); })
+          .then(function(session){
+            w.sellrise('init', { workspace:${safeWsId}, displayMode:${safeMode}, position:'bottom-right',
+              sessionId:session.session_id, scenario:session.scenario||null, branding:session.branding||null });
+            initialized = true;
+          })
+          .catch(function(err){ renderFallback('session_failure', err); });
+      } catch(err) { renderFallback('session_failure', err); }
+    };
+
+    js.onerror = function() { renderFallback('session_failure'); };
+    d.head.appendChild(js);
+    w.setTimeout(function(){ if(!initialized) renderFallback('timeout'); }, timeoutMs);
+  })(window, document);
 </script>`;
   };
 
