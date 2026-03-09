@@ -169,35 +169,47 @@ export default function Leads() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 rounded-2xl p-6">
-      <div className="flex justify-between items-end mb-6">
+    <div className="flex flex-col h-full bg-slate-50 rounded-2xl p-4 md:p-6 overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 shrink-0">
         <div>
-          <h1 className="text-3xl font-semibold text-slate-800 tracking-tight">Leads</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="text-2xl md:text-3xl font-semibold text-slate-800 tracking-tight">Leads</h1>
+          <p className="text-xs md:text-sm text-slate-500 mt-1">
             {loading ? 'Loading...' : `${total} leads captured by your widget.`}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 md:gap-3 items-center">
           <Input
             icon={Search}
-            placeholder="Search by name, email..."
-            className="w-64"
+            placeholder="Search..."
+            className="w-full sm:w-48 lg:w-64"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleSearchKeyDown}
           />
-          <Button
-            variant="secondary"
-            className="gap-2 shrink-0"
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <Filter className="w-4 h-4 text-gray-500" />
-            <span className="text-gray-600">Filters</span>
-            {(stageFilter || scoreFilter) && (
-              <span className="w-2 h-2 rounded-full bg-blue-500" />
-            )}
-          </Button>
-          <Button
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              variant="secondary"
+              className="flex-1 sm:flex-none gap-2 shrink-0 py-2 md:py-2.5"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter className="w-4 h-4 text-gray-500" />
+              <span className="text-gray-600">Filters</span>
+              {(stageFilter || scoreFilter) && (
+                <span className="w-2 h-2 rounded-full bg-blue-500" />
+              )}
+            </Button>
+            <Button
+              variant="secondary"
+              className="flex-1 sm:flex-none gap-2 shrink-0 py-2 md:py-2.5"
+              onClick={handleExportCSV}
+              disabled={exporting}
+            >
+              {exporting ? <Loader2 className="w-4 h-4 animate-spin text-gray-500" /> : <Download className="w-4 h-4 text-gray-500" />}
+              <span className="text-gray-600">Export</span>
+            </Button>
+          </div>
+        </div>
+      </div>
             variant="secondary"
             className="gap-2 shrink-0"
             onClick={handleExportCSV}
@@ -249,29 +261,29 @@ export default function Leads() {
         </div>
       )}
 
-      <div className="flex-1 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left text-slate-500">
-            <thead className="text-xs text-slate-400 uppercase bg-slate-50 border-b border-slate-100">
+      <div className="flex-1 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-0">
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-sm text-left text-slate-500 min-w-[700px] md:min-w-full">
+            <thead className="text-xs text-slate-400 uppercase bg-slate-50 border-b border-slate-100 sticky top-0 z-10">
               <tr>
-                <th scope="col" className="px-6 py-4 font-semibold">Contact Info</th>
-                <th scope="col" className="px-6 py-4 font-semibold">Stage</th>
-                <th scope="col" className="px-6 py-4 font-semibold">Score</th>
-                <th scope="col" className="px-6 py-4 font-semibold">Procedure</th>
-                <th scope="col" className="px-6 py-4 font-semibold">Created At</th>
-                <th scope="col" className="px-6 py-4 font-semibold text-right">Action</th>
+                <th scope="col" className="px-4 md:px-6 py-4 font-semibold">Contact Info</th>
+                <th scope="col" className="px-4 md:px-6 py-4 font-semibold">Stage</th>
+                <th scope="col" className="px-4 md:px-6 py-4 font-semibold">Score</th>
+                <th scope="col" className="px-4 md:px-6 py-4 font-semibold">Procedure</th>
+                <th scope="col" className="px-4 md:px-6 py-4 font-semibold">Created At</th>
+                <th scope="col" className="px-4 md:px-6 py-4 font-semibold text-right">Action</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center">
+                  <td colSpan={6} className="px-4 md:px-6 py-16 text-center">
                     <Loader2 className="w-6 h-6 animate-spin text-gray-400 mx-auto" />
                   </td>
                 </tr>
               ) : leads.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center text-gray-400">
+                  <td colSpan={6} className="px-4 md:px-6 py-16 text-center text-gray-400">
                     No leads found
                   </td>
                 </tr>
@@ -289,22 +301,22 @@ export default function Leads() {
 
                   return (
                     <tr key={lead.id} className="bg-white border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-slate-800 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                      <td className="px-4 md:px-6 py-4 font-medium text-slate-800 whitespace-nowrap">
+                        <div className="flex items-center gap-2 md:gap-3">
+                          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs md:text-sm">
                             {initials}
                           </div>
                           <div className="flex flex-col">
-                            <span>{lead.name || 'Unknown'}</span>
-                            <span className="text-xs text-slate-400 font-normal mt-0.5">{lead.email || lead.phone || '—'}</span>
+                            <span className="text-xs md:text-sm">{lead.name || 'Unknown'}</span>
+                            <span className="text-[10px] md:text-xs text-slate-400 font-normal mt-0.5">{lead.email || lead.phone || '—'}</span>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 md:px-6 py-4">
                         <select
                           value={stage}
                           onChange={(e) => handleUpdateStage(lead.id, e.target.value)}
-                          className={`text-xs font-semibold px-2.5 py-1 rounded-full border-0 cursor-pointer ${stageColors[stage] || 'bg-gray-100 text-gray-700'}`}
+                          className={`text-[10px] md:text-xs font-semibold px-2 md:px-2.5 py-1 rounded-full border-0 cursor-pointer ${stageColors[stage] || 'bg-gray-100 text-gray-700'}`}
                         >
                           {STAGES.map((s) => (
                             <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>

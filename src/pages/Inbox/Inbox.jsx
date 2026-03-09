@@ -366,17 +366,17 @@ export default function Inbox() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 rounded-2xl overflow-hidden p-6">
+        <div className="flex flex-col h-full bg-slate-50 rounded-2xl overflow-hidden p-4 md:p-6">
             <PageHeader
                 title="Inbox"
-                description="New and unassigned leads — sorted by newest first."
-                className="mb-6"
+                description="New and unassigned leads."
+                className="mb-4 md:mb-6"
                 actions={
-                    <form onSubmit={handleSearch} className="flex gap-2">
+                    <form onSubmit={handleSearch} className="flex gap-2 w-full md:w-auto">
                         <Input
                             icon={Search}
-                            placeholder="Search leads…"
-                            className="w-64"
+                            placeholder="Search..."
+                            className="flex-1 md:w-64"
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
                         />
@@ -385,9 +385,9 @@ export default function Inbox() {
                 }
             />
 
-            <div className="flex-1 grid grid-cols-3 gap-6 min-h-0">
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 min-h-0 relative">
                 {/* ── Left Panel: Lead List ─────────────────────────── */}
-                <div className="col-span-1 bg-white border border-slate-100 rounded-2xl shadow-sm flex flex-col overflow-hidden">
+                <div className={`col-span-1 bg-white border border-slate-100 rounded-2xl shadow-sm flex flex-col overflow-hidden ${selectedLead ? 'hidden md:flex' : 'flex'}`}>
                     <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                         <h3 className="font-semibold text-slate-700">New Leads</h3>
                         <span className="text-xs text-slate-400">{total} total</span>
@@ -484,13 +484,20 @@ export default function Inbox() {
                 </div>
 
                 {/* ── Right Panel: Lead Detail + Transcript ─────────── */}
-                <div className="col-span-2 bg-white border border-slate-100 rounded-2xl shadow-sm flex flex-col overflow-hidden">
+                <div className={`col-span-1 md:col-span-2 bg-white border border-slate-100 rounded-2xl shadow-sm flex flex-col overflow-hidden ${!selectedLead ? 'hidden md:flex' : 'flex'}`}>
                     {selectedLead ? (
-                        <LeadDetailPanel
-                            key={selectedLead.id}
-                            lead={selectedLead}
-                            onUpdated={handleLeadUpdated}
-                        />
+                        <>
+                            <div className="md:hidden flex items-center p-4 border-b border-slate-100 bg-white sticky top-0 z-10">
+                                <button onClick={() => setSelectedLead(null)} className="text-slate-500 flex items-center gap-1 font-medium">
+                                    <ChevronLeft className="w-5 h-5" /> Back
+                                </button>
+                            </div>
+                            <LeadDetailPanel
+                                key={selectedLead.id}
+                                lead={selectedLead}
+                                onUpdated={handleLeadUpdated}
+                            />
+                        </>
                     ) : (
                         <div className="flex-1 p-8 flex flex-col items-center justify-center text-center">
                             <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-4">

@@ -56,26 +56,26 @@ function Dashboard() {
   const userName = user?.full_name?.split(' ')[0] || 'there';
 
   return (
-    <div className="h-full bg-[#FAFCFF] p-6 md:p-8 space-y-8 overflow-auto no-scrollbar selection:bg-blue-100">
+    <div className="h-full bg-[#FAFCFF] p-4 md:p-8 space-y-6 md:space-y-8 overflow-auto no-scrollbar selection:bg-blue-100">
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 animate-[fadeIn_0.5s_ease-out]">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 animate-[fadeIn_0.5s_ease-out]">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-gray-200 text-[12px] font-bold mb-3 text-blue-600 shadow-sm">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-gray-200 text-[10px] md:text-[12px] font-bold mb-3 text-blue-600 shadow-sm">
             <Zap className="w-3 h-3 fill-blue-600" /> Live Updates
           </div>
-          <h1 className="text-3xl md:text-[36px] font-extrabold text-gray-900 tracking-tight leading-none">
+          <h1 className="text-2xl md:text-3xl lg:text-[36px] font-extrabold text-gray-900 tracking-tight leading-tight">
             Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500">{userName}</span>
           </h1>
-          <p className="text-[15px] text-gray-500 mt-2 font-medium">Here's what your AI agent has been up to today.</p>
+          <p className="text-sm md:text-[15px] text-gray-500 mt-2 font-medium">Here's what your AI agent has been up to today.</p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="relative w-full sm:w-auto">
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
-              className="appearance-none bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-full px-5 py-2.5 pr-10 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm transition-all cursor-pointer"
+              className="w-full appearance-none bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-full px-5 py-2.5 pr-10 hover:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm transition-all cursor-pointer"
             >
               <option value="today">Today</option>
               <option value="7d">Last 7 Days</option>
@@ -87,7 +87,7 @@ function Dashboard() {
           </div>
           <button
             onClick={() => navigate('/scenarios')}
-            className="flex items-center gap-2 bg-[#0066FF] hover:bg-blue-700 text-white px-6 py-2.5 rounded-full text-[14px] font-bold transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[#0066FF] hover:bg-blue-700 text-white px-6 py-2.5 rounded-full text-[14px] font-bold transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:translate-y-0"
           >
             <Plus className="w-4 h-4" /> New Scenario
           </button>
