@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Shield, Bell, Users, CreditCard, Loader2 } from 'lucide-react';
+import { Settings as SettingsIcon, Shield, Bell, Users, CreditCard, Loader2, UserPlus, X } from 'lucide-react';
 import { Button, PageHeader, SettingsNavItem } from '../../components';
 import useAuthStore from '../../stores/authStore';
 import { workspaceService, userService } from '../../services';
@@ -25,6 +25,16 @@ export default function Settings() {
     const [loadingUsers, setLoadingUsers] = useState(true);
     const [usersError, setUsersError] = useState('');
     const [updatingUserId, setUpdatingUserId] = useState('');
+
+    // Invite form state
+    const [showInviteForm, setShowInviteForm] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteFullName, setInviteFullName] = useState('');
+    const [inviteRole, setInviteRole] = useState('agent');
+    const [invitePassword, setInvitePassword] = useState('');
+    const [inviting, setInviting] = useState(false);
+    const [inviteError, setInviteError] = useState('');
+    const [inviteSuccess, setInviteSuccess] = useState('');
 
     const user = useAuthStore((s) => s.user);
     const isAdmin = user?.role === 'admin';
@@ -116,6 +126,35 @@ export default function Settings() {
         }
     };
 
+    const handleInviteUser = async (e) => {
+        e.preventDefault();
+        if (!inviteEmail.trim() || !invitePassword.trim()) return;
+
+        setInviting(true);
+        setInviteError('');
+        setInviteSuccess('');
+
+        try {
+            const newUser = await userService.createUser({
+                email: inviteEmail.trim(),
+                full_name: inviteFullName.trim() || undefined,
+                role: inviteRole,
+                password: invitePassword,
+            });
+            setUsers((prev) => [...prev, newUser]);
+            setInviteEmail('');
+            setInviteFullName('');
+            setInviteRole('agent');
+            setInvitePassword('');
+            setInviteSuccess(`User "${newUser.email}" added successfully.`);
+            setShowInviteForm(false);
+        } catch (err) {
+            setInviteError(err.message || 'Failed to create user.');
+        } finally {
+            setInviting(false);
+        }
+    };
+
     return (
         <div className="flex flex-col h-full bg-slate-50 rounded-2xl p-8 overflow-hidden">
             <PageHeader
@@ -197,7 +236,91 @@ export default function Settings() {
 
                     {activeNav === 'team' && (
                       <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
-                        <h2 className="text-xl font-bold text-slate-800 mb-6 border-b border-slate-100 pb-4">Team Management</h2>
+                        <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+                          <h2 className="text-xl font-bold text-slate-800">Team Management</h2>
+                          {isAdmin && (
+                            <Button
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2"
+                              onClick={() => { setShowInviteForm((v) => !v); setInviteError(''); setInviteSuccess(''); }}
+                            >
+                              {showInviteForm ? <X className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                              {showInviteForm ? 'Cancel' : 'Invite Member'}
+                            </Button>
+                          )}
+                        </div>
+
+                        {/* Invite form */}
+                        {showInviteForm && isAdmin && (
+                          <form onSubmit={handleInviteUser} className="mb-6 p-5 border border-indigo-100 bg-indigo-50 rounded-2xl space-y-4">
+                            <h3 className="text-sm font-semibold text-indigo-800">New Team Member</h3>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Email <span className="text-red-500">*</span></label>
+                                <input
+                                  type="email"
+                                  value={inviteEmail}
+                                  onChange={(e) => setInviteEmail(e.target.value)}
+                                  required
+                                  placeholder="agent@example.com"
+                                  className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl p-3 focus:ring-indigo-500 focus:border-indigo-500"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Full Name</label>
+                                <input
+                                  type="text"
+                                  value={inviteFullName}
+                                  onChange={(e) => setInviteFullName(e.target.value)}
+                                  placeholder="Jane Doe"
+                                  className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl p-3 focus:ring-indigo-500 focus:border-indigo-500"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Role <span className="text-red-500">*</span></label>
+                                <select
+                                  value={inviteRole}
+                                  onChange={(e) => setInviteRole(e.target.value)}
+                                  className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl p-3 focus:ring-indigo-500 focus:border-indigo-500"
+                                >
+                                  <option value="admin">Admin</option>
+                                  <option value="agent">Agent</option>
+                                  <option value="viewer">Viewer</option>
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-medium text-slate-700 mb-1">Temporary Password <span className="text-red-500">*</span></label>
+                                <input
+                                  type="password"
+                                  value={invitePassword}
+                                  onChange={(e) => setInvitePassword(e.target.value)}
+                                  required
+                                  placeholder="Set initial password"
+                                  className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl p-3 focus:ring-indigo-500 focus:border-indigo-500"
+                                />
+                              </div>
+                            </div>
+
+                            {inviteError && <p className="text-sm text-red-600">{inviteError}</p>}
+
+                            <div className="flex justify-end">
+                              <Button
+                                type="submit"
+                                disabled={inviting || !inviteEmail.trim() || !invitePassword.trim()}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white w-36"
+                              >
+                                {inviting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Add Member'}
+                              </Button>
+                            </div>
+                          </form>
+                        )}
+
+                        {inviteSuccess && (
+                          <p className="text-sm text-green-600 mb-4">{inviteSuccess}</p>
+                        )}
 
                         {usersError && <p className="text-sm text-red-600 mb-4">{usersError}</p>}
 
