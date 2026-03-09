@@ -148,6 +148,18 @@ class ApiClient {
   };
 
   /**
+   * Analytics API
+   */
+  analytics = {
+    getSummary: () => this.get('/v1/analytics/summary'),
+    getFunnel: (params) => this.get('/v1/analytics/funnel', params),
+    getSources: (params) => this.get('/v1/analytics/sources', params),
+    getDropoff: (params) => this.get('/v1/analytics/dropoff', params),
+    exportLeads: (params) => this.get('/v1/analytics/export', params),
+  };
+
+
+  /**
    * Knowledge Base API
    */
   kb = {
