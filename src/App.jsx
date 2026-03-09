@@ -16,7 +16,6 @@ const Leads           = lazy(() => import('./pages/Leads/Leads'));
 const Scenarios       = lazy(() => import('./pages/Scenarios/Scenarios'));
 const KnowledgeBase   = lazy(() => import('./pages/KnowledgeBase/KnowledgeBase'));
 const Analytics       = lazy(() => import('./pages/Analytics/Analytics'));
-const Domains         = lazy(() => import('./pages/Domains/Domains'));
 const Settings        = lazy(() => import('./pages/Settings/Settings'));
 const WidgetSettings  = lazy(() => import('./pages/WidgetSettings'));
 const WidgetPreview   = lazy(() => import('./pages/WidgetPreview'));
@@ -46,7 +45,7 @@ function AppRoutes() {
       <Route path="/scenario-config" element={<ProtectedRoute><MainLayout><ScenarioConfiguration /></MainLayout></ProtectedRoute>} />
       <Route path="/knowledge-base" element={<ProtectedRoute><MainLayout><KnowledgeBase /></MainLayout></ProtectedRoute>} />
       <Route path="/analytics" element={<ProtectedRoute><MainLayout><Analytics /></MainLayout></ProtectedRoute>} />
-      <Route path="/domains" element={<ProtectedRoute><MainLayout><Domains /></MainLayout></ProtectedRoute>} />
+      <Route path="/domains" element={<Navigate to="/widget-settings" replace />} />
       <Route path="/settings" element={<ProtectedRoute><MainLayout><Settings /></MainLayout></ProtectedRoute>} />
       <Route path="/widget-settings" element={<ProtectedRoute><MainLayout><WidgetSettings /></MainLayout></ProtectedRoute>} />
       <Route path="/preview/widget/:workspaceId" element={<ProtectedRoute><WidgetPreview /></ProtectedRoute>} />
