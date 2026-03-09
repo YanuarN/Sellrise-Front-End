@@ -1,5 +1,6 @@
 export { default as api } from './api';
 export { default as authService } from './authService';
+export { default as conversationService } from './conversationService';
 export { default as leadService } from './leadService';
 export { default as scenarioService } from './scenarioService';
 export { default as kbService } from './kbService';

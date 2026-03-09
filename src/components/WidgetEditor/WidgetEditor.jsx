@@ -393,6 +393,7 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
       {isSimulatorOpen && (
         <WidgetSimulator
           onClose={() => setIsSimulatorOpen(false)}
+          workspaceId={workspaceId}
           workspaceName={workspaceName}
           fallbackMessage={fallbackMessage}
         />
