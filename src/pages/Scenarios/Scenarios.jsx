@@ -64,6 +64,25 @@ export default function Scenarios() {
     setSimulatingScenario(scenario);
   };
 
+  const handlePublish = async (id) => {
+    try {
+      await scenarioService.publishScenario(id);
+      fetchScenarios();
+    } catch (err) {
+      console.error('Failed to publish scenario:', err);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this scenario?')) return;
+    try {
+      await scenarioService.deleteScenario(id);
+      setScenarios((prev) => prev.filter((s) => s.id !== id));
+    } catch (err) {
+      console.error('Failed to delete scenario:', err);
+    }
+  };
+
   const filteredScenarios = searchQuery
     ? scenarios.filter((s) =>
         s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -126,12 +145,23 @@ export default function Scenarios() {
               title={scenario.name}
               description={scenario.description || 'No description'}
               status={scenario.is_published ? `Published (v${scenario.version || 1})` : `Draft (v${scenario.version || 1})`}
+              isPublished={!!scenario.is_published}
               lastModified={formatDate(scenario.updated_at)}
               onEdit={isAdmin ? () => handleEdit(scenario) : undefined}
+              onPublish={isAdmin && !scenario.is_published ? () => handlePublish(scenario.id) : undefined}
               onSimulate={() => handleSimulate(scenario)}
+              onDelete={isAdmin ? () => handleDelete(scenario.id) : undefined}
             />
           ))}
         </div>
+      )}
+
+      {/* Scenario Simulator */}
+      {simulatingScenario && (
+        <ScenarioSimulator
+          scenario={simulatingScenario}
+          onClose={() => setSimulatingScenario(null)}
+        />
       )}
 
       {/* Create Modal */}
@@ -169,6 +199,15 @@ export default function Scenarios() {
                   placeholder="Describe what this scenario does..."
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Config (JSON)</label>
+                <textarea
+                  value={formData.config}
+                  onChange={(e) => setFormData({ ...formData, config: e.target.value })}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none h-32"
+                  placeholder='{"stages": []}'
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
@@ -185,14 +224,6 @@ export default function Scenarios() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Scenario Simulator */}
-      {simulatingScenario && (
-        <ScenarioSimulator
-          scenario={simulatingScenario}
-          onClose={() => setSimulatingScenario(null)}
-        />
       )}
     </div>
   );
