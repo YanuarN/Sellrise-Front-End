@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import authService from '../services/authService';
 import api from '../services/api';
 
-const DEV_BYPASS_AUTH = import.meta.env.DEV && import.meta.env.VITE_BYPASS_AUTH !== 'false';
-const DEV_FORCE_ADMIN_ROLE = import.meta.env.DEV && import.meta.env.VITE_DEV_FORCE_ADMIN_ROLE !== 'false';
+const DEV_BYPASS_AUTH = import.meta.env.DEV && import.meta.env.VITE_BYPASS_AUTH === 'true';
+const DEV_FORCE_ADMIN_ROLE = import.meta.env.DEV && import.meta.env.VITE_DEV_FORCE_ADMIN_ROLE === 'true';
 
 const DEV_USER = {
   id: 'dev-admin-user',

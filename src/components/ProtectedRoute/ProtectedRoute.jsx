@@ -1,14 +1,14 @@
 import { Navigate } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
 
-// TODO: Set to false to re-enable auth guard for production
-const BYPASS_AUTH = true;
+// Allow explicit dev bypass via VITE_BYPASS_AUTH=true in .env.development
+const DEV_BYPASS = import.meta.env.DEV && (import.meta.env.VITE_BYPASS_AUTH === 'true');
 
 export default function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuthStore();
 
-  // Skip guard during development
-  if (BYPASS_AUTH) return children;
+  // Allow explicit dev bypass only when env var is set.
+  if (DEV_BYPASS) return children;
 
   if (isLoading) {
     return (

@@ -15,12 +15,15 @@ function WidgetPreview() {
   const generateSnippet = () => {
     const safeWsId = JSON.stringify(wsId);
     const safeMode = JSON.stringify(displayMode);
+    const resolvedApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const resolvedWidgetUrl = import.meta.env.VITE_WIDGET_URL || 'http://localhost:5173/widget.js';
     return `<script>
   (function(w,d){
+    var apiBaseUrl = ${JSON.stringify(resolvedApiUrl)};
     var widgetMode = ${safeMode};
     var fallbackMessage = "Please leave your details and our team will contact you shortly.";
-    var sessionEndpoint = '/v1/widget/session';
-    var fallbackEndpoint = '/v1/widget/fallback-lead';
+    var sessionEndpoint = apiBaseUrl + '/v1/widget/session';
+    var fallbackEndpoint = apiBaseUrl + '/v1/widget/fallback-lead';
     var timeoutMs = 12000;
     var initialized = false;
     var fallbackRendered = false;
@@ -67,7 +70,7 @@ function WidgetPreview() {
     }
 
     var js = d.createElement('script');
-    js.src = 'https://cdn.sellrise.ai/widget.js';
+    js.src = '${resolvedWidgetUrl}';
     js.async = true;
 
     js.onload = function() {
@@ -82,6 +85,7 @@ function WidgetPreview() {
           .then(function(r){ if(!r.ok) throw new Error('Session failed'); return r.json(); })
           .then(function(session){
             w.sellrise('init', { workspace:${safeWsId}, displayMode:${safeMode}, position:'bottom-right',
+              apiBaseUrl: apiBaseUrl || null,
               sessionId:session.session_id, scenario:session.scenario||null, branding:session.branding||null });
             initialized = true;
           })

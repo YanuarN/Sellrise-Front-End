@@ -206,7 +206,7 @@ class ApiClient {
   };
 
   /**
-   * Widget API
+   * Widget API (public — no auth required)
    */
   widget = {
     /**
@@ -214,6 +214,30 @@ class ApiClient {
      * @param {Object} payload - { domain, page_url, referrer, utm_* , timezone }
      */
     session: (payload) => this.post('/v1/widget/session', payload),
+
+    /**
+     * Create or deduplicate a lead from the widget.
+     * @param {Object} payload - { workspace_id, name, email, phone, consent_given, ... }
+     */
+    createLead: (payload) => this.post('/v1/widget/lead', payload),
+
+    /**
+     * Send a chat message through the widget (AI runtime).
+     * @param {Object} payload - { workspace_id, lead_id, message, channel, session_id }
+     */
+    sendMessage: (payload) => this.post('/v1/widget/message', payload),
+
+    /**
+     * Log a widget interaction event.
+     * @param {Object} payload - { workspace_id, lead_id, event_type, step_name, data }
+     */
+    event: (payload) => this.post('/v1/widget/event', payload),
+
+    /**
+     * Search the knowledge base (public).
+     * @param {Object} params - { q, workspace_id, limit }
+     */
+    kbSearch: (params) => this.get('/v1/widget/kb/search', params),
 
     /**
      * Submit a fallback lead capture form.

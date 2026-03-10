@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { X, RotateCcw, AlertTriangle, Send, Bot, User, Loader2 } from 'lucide-react';
 import { Button } from '../Button';
-import { conversationService } from '../../services';
+import api from '../../services/api';
 
 /**
  * WidgetSimulator
@@ -21,7 +21,8 @@ import { conversationService } from '../../services';
 function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fallbackMessage }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [conversationId, setConversationId] = useState(null);
+  const [leadId, setLeadId] = useState(null);
+  const [sessionId] = useState(() => `sim-${Date.now()}`);
   const [isInitialising, setIsInitialising] = useState(true);
   const [initError, setInitError] = useState(null);
   const [isSending, setIsSending] = useState(false);
@@ -43,10 +44,16 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
       setInitError(null);
 
       try {
-        const conv = await conversationService.startConversation(workspaceId);
+        // Create a simulator lead via the public widget API
+        const res = await api.widget.createLead({
+          workspace_id: workspaceId,
+          name: 'Simulator User',
+          email: `simulator-${Date.now()}@test.local`,
+          consent_given: true,
+        });
         if (cancelled) return;
 
-        setConversationId(conv.id);
+        setLeadId(res.lead_id);
         setMessages([
           {
             id: 1,
@@ -84,7 +91,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     if (event) event.preventDefault();
 
     const trimmed = input.trim();
-    if (!trimmed || isFallbackMode || isSending || !conversationId) return;
+    if (!trimmed || isFallbackMode || isSending || !leadId) return;
 
     setMessages((prev) => [
       ...prev,
@@ -94,9 +101,14 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     setIsSending(true);
 
     try {
-      const res = await conversationService.sendStep(conversationId, trimmed);
-      const reply = res?.reply ?? res?.message ?? res?.content ?? '[No response]';
-      pushBotMessage(reply);
+      const res = await api.widget.sendMessage({
+        workspace_id: workspaceId,
+        lead_id: leadId,
+        message: trimmed,
+        channel: 'web',
+        session_id: sessionId,
+      });
+      pushBotMessage(res.bot_reply || '[No response]');
     } catch (err) {
       pushBotMessage(`Error: ${err.message || 'Could not get a response. Please try again.'}`);
     } finally {
@@ -117,13 +129,18 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     setInput('');
     setIsFallbackMode(false);
     setIsSending(false);
-    setConversationId(null);
+    setLeadId(null);
     setIsInitialising(true);
     setInitError(null);
 
     try {
-      const conv = await conversationService.startConversation(workspaceId);
-      setConversationId(conv.id);
+      const res = await api.widget.createLead({
+        workspace_id: workspaceId,
+        name: 'Simulator User',
+        email: `simulator-${Date.now()}@test.local`,
+        consent_given: true,
+      });
+      setLeadId(res.lead_id);
       setMessages([
         {
           id: 1,
@@ -145,7 +162,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     pushBotMessage(fallbackMessage || 'Please leave your details and our team will contact you shortly.');
   };
 
-  const isInputDisabled = isFallbackMode || isSending || isInitialising || !!initError || !conversationId;
+  const isInputDisabled = isFallbackMode || isSending || isInitialising || !!initError || !leadId;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -179,9 +196,9 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
           <Button size="sm" variant="outline" className="gap-1" onClick={handleTriggerFallback} disabled={isInitialising || isFallbackMode}>
             <AlertTriangle size={14} /> Simulate Timeout
           </Button>
-          {conversationId && (
-            <span className="ml-auto font-mono text-xs text-gray-400" title="Conversation ID">
-              {conversationId.slice(0, 12)}…
+          {leadId && (
+            <span className="ml-auto font-mono text-xs text-gray-400" title="Lead ID">
+              {leadId.slice(0, 12)}…
             </span>
           )}
         </div>
