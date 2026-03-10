@@ -20,13 +20,16 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
     // Safely encode values embedded in generated script to prevent injection
     const safeWorkspaceId = JSON.stringify(workspaceId);
     const safeDisplayMode = JSON.stringify(displayMode);
+    const resolvedApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const resolvedWidgetUrl = import.meta.env.VITE_WIDGET_URL || 'http://localhost:5173/widget.js';
 
     return `<script>
   (function(w,d){
+    var apiBaseUrl = ${JSON.stringify(resolvedApiUrl)};
     var widgetMode = ${safeDisplayMode};
     var fallbackMessage = ${serializedFallbackMessage};
-    var sessionEndpoint = '/v1/widget/session';
-    var fallbackEndpoint = '/v1/widget/fallback-lead';
+    var sessionEndpoint = apiBaseUrl + '/v1/widget/session';
+    var fallbackEndpoint = apiBaseUrl + '/v1/widget/fallback-lead';
     var timeoutMs = 12000;
     var initialized = false;
     var fallbackRendered = false;
@@ -117,7 +120,7 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
     }
 
     var js = d.createElement('script');
-    js.src = '${import.meta.env.VITE_WIDGET_URL || "http://localhost:5173/widget.js"}';
+    js.src = '${resolvedWidgetUrl}';
     js.async = true;
 
     js.onload = function() {
@@ -149,6 +152,7 @@ function WidgetEditor({ workspaceId = 'workspace_demo_123', workspaceName = 'My 
               workspace: ${safeWorkspaceId},
               displayMode: ${safeDisplayMode},
               position: 'bottom-right',
+              apiBaseUrl: apiBaseUrl || null,
               sessionId: session.session_id,
               scenario: session.scenario_json || session.scenario || null,
               branding: session.branding || null,

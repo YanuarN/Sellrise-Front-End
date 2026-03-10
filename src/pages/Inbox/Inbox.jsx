@@ -48,14 +48,20 @@ function initials(name, email) {
 
 // ─── Conversation Transcript ──────────────────────────────────────────────────
 
-const BOT_EVENTS = new Set(['step_completed', 'bot_message', 'question_asked', 'session_started']);
-const VISITOR_EVENTS = new Set(['answer_given', 'contact_submitted', 'visitor_message']);
+const BOT_EVENTS = new Set(['step_completed', 'bot_message', 'question_asked', 'session_started', 'widget_message_replied']);
+const VISITOR_EVENTS = new Set(['answer_given', 'lead_submitted', 'visitor_message', 'widget_message_received']);
 
 function eventLabel(ev) {
-    if (ev.event_type === 'contact_submitted') {
+    if (ev.event_type === 'lead_submitted') {
         const d = ev.data || {};
         const parts = [d.name, d.email, d.phone].filter(Boolean);
-        return parts.length ? parts.join(' · ') : 'Contact info submitted';
+        return parts.length ? parts.join(' · ') : 'Lead submitted';
+    }
+    if (ev.event_type === 'widget_message_received') {
+        return ev.data?.message_preview || 'Visitor sent a message';
+    }
+    if (ev.event_type === 'widget_message_replied') {
+        return 'Bot replied';
     }
     if (ev.event_type === 'answer_given') {
         const answer = ev.data?.answer ?? ev.data?.value;
@@ -333,7 +339,7 @@ export default function Inbox() {
         setError(null);
         try {
             const res = await leadService.getLeads({
-                stage: 'new',
+                inbox: true,
                 page: pg,
                 pageSize: PAGE_SIZE,
                 search: q || undefined,
