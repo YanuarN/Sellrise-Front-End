@@ -1,184 +1,165 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { X, RotateCcw, AlertTriangle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { X, RotateCcw, AlertTriangle, Send, Bot, User, Loader2 } from 'lucide-react';
 import { Button } from '../Button';
 import { conversationService } from '../../services';
 
 /**
- * WidgetSimulator  (US-4.5 – Centralized Conversation System)
+ * WidgetSimulator
  *
- * Provides an in-app chat preview that routes every user message through the
- * real conversation engine (POST /v1/conversations + POST …/steps).
- *
- * When a workspaceId is supplied the component:
- *   1. Creates a server-side conversation session on mount.
- *   2. Sends each user message via conversationService.sendStep().
- *   3. Displays the bot reply returned by the engine.
- *
- * If the API is unreachable (network error, missing workspaceId, etc.) the
- * component falls back to a simple local keyword-matching reply so the
- * simulator remains usable during development / offline.
+ * An in-app chat overlay that lets admins test the chatbot widget before
+ * embedding it.  Every user message is forwarded to the live conversation
+ * engine via:
+ *   POST /v1/conversations  – creates the session on open
+ *   POST /v1/steps          – processes each user turn and returns a reply
  *
  * Props:
- *   onClose         {Function} – called when the user closes the modal
- *   workspaceId     {string}   – workspace public key (enables live API mode)
- *   workspaceName   {string}   – display name shown in the welcome message
- *   fallbackMessage {string}   – message shown when the widget times out
+ *   workspaceId    {string}   Workspace public key used to start the conversation
+ *   workspaceName  {string}   Display name shown in the simulator header
+ *   fallbackMessage {string}  Message shown when the "Simulate Timeout" button is pressed
+ *   onClose        {Function} Called when the user dismisses the modal
  */
-function WidgetSimulator({
-  onClose,
-  workspaceId,
-  workspaceName = 'Workspace',
-  fallbackMessage,
-}) {
-  const defaultMessages = useMemo(
-    () => [
-      {
-        id: 1,
-        role: 'bot',
-        text: `Hi! This is ${workspaceName} chatbot simulator. Ask me about pricing, booking, or support.`,
-      },
-    ],
-    [workspaceName],
-  );
-
-  const [messages, setMessages] = useState(defaultMessages);
+function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fallbackMessage }) {
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [isFallbackMode, setIsFallbackMode] = useState(false);
-  const [isBotTyping, setIsBotTyping] = useState(false);
   const [conversationId, setConversationId] = useState(null);
-  const [slots, setSlots] = useState({});
-  const [apiError, setApiError] = useState(null);
+  const [isInitialising, setIsInitialising] = useState(true);
+  const [initError, setInitError] = useState(null);
+  const [isSending, setIsSending] = useState(false);
+  const [isFallbackMode, setIsFallbackMode] = useState(false);
   const endRef = useRef(null);
+  const inputRef = useRef(null);
 
-  // ── scroll to bottom whenever messages change ──────────────────────────
+  // Scroll to the latest message whenever messages update.
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isBotTyping]);
+  }, [messages, isSending]);
 
-  // ── start a server-side conversation session on mount ─────────────────
+  // Start the conversation session as soon as the simulator opens.
   useEffect(() => {
-    if (!workspaceId) return;
+    let cancelled = false;
 
-    conversationService
-      .startConversation(workspaceId)
-      .then((res) => {
-        // Primary field is `id`; `conversation_id` accepted for API compatibility.
-        setConversationId(res?.id ?? res?.conversation_id ?? null);
-      })
-      .catch((err) => {
-        console.error('[WidgetSimulator] Failed to start conversation session:', err);
-        // Non-fatal: fall back to local replies if session cannot be created.
-        setApiError('Could not start a live session. Running in local mode.');
-      });
-  }, [workspaceId]);
+    async function init() {
+      setIsInitialising(true);
+      setInitError(null);
 
-  // ── helpers ────────────────────────────────────────────────────────────
-  const pushBotMessage = (text) => {
+      try {
+        const conv = await conversationService.startConversation(workspaceId);
+        if (cancelled) return;
+
+        setConversationId(conv.id);
+        setMessages([
+          {
+            id: 1,
+            role: 'bot',
+            content: `Hi! I am the ${workspaceName} assistant. How can I help you today?`,
+          },
+        ]);
+      } catch (err) {
+        if (!cancelled) {
+          setInitError(err.message || 'Failed to start conversation. Check your connection and try again.');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsInitialising(false);
+          setTimeout(() => inputRef.current?.focus(), 0);
+        }
+      }
+    }
+
+    init();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, workspaceName]);
+
+  const pushBotMessage = (content) => {
     setMessages((prev) => [
       ...prev,
-      { id: Date.now() + Math.random(), role: 'bot', text },
+      { id: Date.now() + Math.random(), role: 'bot', content },
     ]);
   };
 
-  /**
-   * Local keyword-matching fallback – used when the API is unavailable or
-   * no workspaceId was provided.  This is intentionally kept as a last
-   * resort rather than the primary response path.
-   */
-  const buildLocalReply = (rawInput) => {
-    const text = rawInput.toLowerCase();
-    if (text.includes('book') || text.includes('demo') || text.includes('schedule')) {
-      return 'Great. You can book a consultation here: https://calendly.com/your-team/demo';
-    }
-    if (text.includes('price') || text.includes('pricing') || text.includes('cost')) {
-      return 'Our plans start from $49/month. For custom pricing, share your lead volume and team size.';
-    }
-    if (text.includes('support') || text.includes('help') || text.includes('issue')) {
-      return 'I can help with support. Please describe your issue, and I will route it to the right team.';
-    }
-    if (text.includes('hi') || text.includes('hello')) {
-      return 'Hello. What would you like to do today: get pricing, ask product questions, or book a demo?';
-    }
-    return 'I did not fully understand that. Try asking about pricing, support, or booking a demo.';
-  };
-
-  // ── send a message ─────────────────────────────────────────────────────
   const handleSend = async (event) => {
-    event.preventDefault();
+    if (event) event.preventDefault();
 
     const trimmed = input.trim();
-    if (!trimmed || isFallbackMode || isBotTyping) return;
+    if (!trimmed || isFallbackMode || isSending || !conversationId) return;
 
-    const userMessage = { id: Date.now(), role: 'user', text: trimmed };
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => [
+      ...prev,
+      { id: Date.now(), role: 'user', content: trimmed },
+    ]);
     setInput('');
-    setIsBotTyping(true);
-    setApiError(null);
+    setIsSending(true);
 
     try {
-      if (conversationId) {
-        // Live mode: call the conversation engine.
-        const res = await conversationService.sendStep(conversationId, trimmed, slots);
-        // Primary reply field is `reply`; `message` and `content` accepted for API compatibility.
-        const reply =
-          res?.reply ?? res?.message ?? res?.content ?? '[No response]';
-        pushBotMessage(reply);
-        if (res?.slots) setSlots(res.slots);
-      } else {
-        // Local mode: small delay to mimic network round-trip.
-        await new Promise((resolve) => window.setTimeout(resolve, 400));
-        pushBotMessage(buildLocalReply(trimmed));
-      }
+      const res = await conversationService.sendStep(conversationId, trimmed);
+      const reply = res?.reply ?? res?.message ?? res?.content ?? '[No response]';
+      pushBotMessage(reply);
     } catch (err) {
-      console.error('[WidgetSimulator] Conversation step failed:', err);
-      setApiError('Could not reach the conversation engine. Showing a local reply.');
-      pushBotMessage(buildLocalReply(trimmed));
+      pushBotMessage(`Error: ${err.message || 'Could not get a response. Please try again.'}`);
     } finally {
-      setIsBotTyping(false);
+      setIsSending(false);
+      setTimeout(() => inputRef.current?.focus(), 0);
     }
   };
 
-  const handleReset = () => {
-    setMessages(defaultMessages);
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleReset = async () => {
+    setMessages([]);
     setInput('');
     setIsFallbackMode(false);
-    setIsBotTyping(false);
-    setSlots({});
-    setApiError(null);
+    setIsSending(false);
+    setConversationId(null);
+    setIsInitialising(true);
+    setInitError(null);
 
-    // Re-create a server conversation if we have a workspace ID.
-    if (workspaceId) {
-      conversationService
-        .startConversation(workspaceId)
-        .then((res) => setConversationId(res?.id ?? res?.conversation_id ?? null))
-        .catch((err) => {
-          console.error('[WidgetSimulator] Failed to restart conversation session:', err);
-          setApiError('Could not start a live session. Running in local mode.');
-        });
+    try {
+      const conv = await conversationService.startConversation(workspaceId);
+      setConversationId(conv.id);
+      setMessages([
+        {
+          id: 1,
+          role: 'bot',
+          content: `Hi! I am the ${workspaceName} assistant. How can I help you today?`,
+        },
+      ]);
+    } catch (err) {
+      setInitError(err.message || 'Failed to restart conversation.');
+    } finally {
+      setIsInitialising(false);
+      setTimeout(() => inputRef.current?.focus(), 0);
     }
   };
 
   const handleTriggerFallback = () => {
     setIsFallbackMode(true);
-    setIsBotTyping(false);
-    pushBotMessage(
-      fallbackMessage || 'Please leave your details and our team will contact you shortly.',
-    );
+    setIsSending(false);
+    pushBotMessage(fallbackMessage || 'Please leave your details and our team will contact you shortly.');
   };
 
-  // ── render ─────────────────────────────────────────────────────────────
+  const isInputDisabled = isFallbackMode || isSending || isInitialising || !!initError || !conversationId;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
+      <div className="flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl" style={{ height: '560px' }}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900">Widget Simulator</h3>
-            <p className="text-xs text-gray-600">
-              {conversationId
-                ? 'Live mode — connected to conversation engine'
-                : 'Try your chatbot before embedding it.'}
-            </p>
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white">
+              <Bot size={14} />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">Widget Simulator</h3>
+              <p className="text-xs text-gray-500">{workspaceName}</p>
+            </div>
           </div>
           <button
             type="button"
@@ -192,65 +173,84 @@ function WidgetSimulator({
 
         {/* Toolbar */}
         <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-4 py-2">
-          <Button size="sm" variant="secondary" className="gap-1" onClick={handleReset}>
+          <Button size="sm" variant="secondary" className="gap-1" onClick={handleReset} disabled={isInitialising}>
             <RotateCcw size={14} /> Reset
           </Button>
-          <Button size="sm" variant="outline" className="gap-1" onClick={handleTriggerFallback}>
+          <Button size="sm" variant="outline" className="gap-1" onClick={handleTriggerFallback} disabled={isInitialising || isFallbackMode}>
             <AlertTriangle size={14} /> Simulate Timeout
           </Button>
+          {conversationId && (
+            <span className="ml-auto font-mono text-xs text-gray-400" title="Conversation ID">
+              {conversationId.slice(0, 12)}…
+            </span>
+          )}
         </div>
 
-        {/* API error notice */}
-        {apiError && (
-          <div className="border-b border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-800">
-            {apiError}
-          </div>
-        )}
-
-        {/* Messages area */}
-        <div className="h-80 space-y-3 overflow-y-auto px-4 py-3">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
-                message.role === 'bot'
-                  ? 'bg-gray-100 text-gray-800'
-                  : 'ml-auto bg-blue-600 text-white'
-              }`}
-            >
-              {message.text}
-            </div>
-          ))}
-
-          {isBotTyping && (
-            <div className="max-w-[85%] rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-600">
-              Chatbot is typing...
+        {/* Message area */}
+        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+          {/* Initialising state */}
+          {isInitialising && (
+            <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">
+              <Loader2 size={24} className="animate-spin" />
+              <p className="text-sm">Starting conversation…</p>
             </div>
           )}
 
+          {/* Init error */}
+          {!isInitialising && initError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <p className="font-medium">Could not start conversation</p>
+              <p className="mt-1 text-xs">{initError}</p>
+            </div>
+          )}
+
+          {/* Messages */}
+          {!isInitialising && !initError && messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex gap-2 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+            >
+              <div
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white ${
+                  message.role === 'user' ? 'bg-blue-500' : 'bg-indigo-600'
+                }`}
+              >
+                {message.role === 'user' ? <User size={12} /> : <Bot size={12} />}
+              </div>
+              <div
+                className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                  message.role === 'user'
+                    ? 'rounded-tr-sm bg-blue-600 text-white'
+                    : 'rounded-tl-sm bg-gray-100 text-gray-800'
+                }`}
+              >
+                {message.content}
+              </div>
+            </div>
+          ))}
+
+          {/* Bot typing indicator */}
+          {isSending && (
+            <div className="flex items-center gap-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-white">
+                <Bot size={12} />
+              </div>
+              <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm bg-gray-100 px-4 py-2.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '-0.3s' }} />
+                <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '-0.15s' }} />
+                <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" />
+              </div>
+            </div>
+          )}
+
+          {/* Fallback form preview */}
           {isFallbackMode && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
               <p className="mb-2 font-medium">Fallback Contact Form</p>
               <div className="grid gap-2">
-                <input
-                  disabled
-                  value="Your name"
-                  className="rounded border border-amber-200 bg-white px-2 py-1.5 text-xs"
-                  readOnly
-                />
-                <input
-                  disabled
-                  value="Email"
-                  className="rounded border border-amber-200 bg-white px-2 py-1.5 text-xs"
-                  readOnly
-                />
-                <button
-                  type="button"
-                  disabled
-                  className="rounded bg-gray-300 px-2 py-1.5 text-xs text-gray-700"
-                >
-                  Submit
-                </button>
+                <input disabled value="Your name" className="rounded border border-amber-200 bg-white px-2 py-1.5 text-xs" readOnly />
+                <input disabled value="Email" className="rounded border border-amber-200 bg-white px-2 py-1.5 text-xs" readOnly />
+                <button type="button" disabled className="rounded bg-gray-300 px-2 py-1.5 text-xs text-gray-700">Submit</button>
               </div>
             </div>
           )}
@@ -259,27 +259,34 @@ function WidgetSimulator({
         </div>
 
         {/* Input bar */}
-        <form onSubmit={handleSend} className="border-t border-gray-200 p-3">
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
+        <form onSubmit={handleSend} className="shrink-0 border-t border-gray-200 p-3">
+          <div className="flex items-end gap-2">
+            <textarea
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              onKeyDown={handleKeyDown}
+              disabled={isInputDisabled}
+              rows={1}
+              className="w-full resize-none rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-gray-50 max-h-24 overflow-y-auto"
               placeholder={
                 isFallbackMode
                   ? 'Fallback mode active. Reset to continue.'
-                  : 'Type a message...'
+                  : isInitialising
+                  ? 'Starting conversation…'
+                  : initError
+                  ? 'Conversation unavailable.'
+                  : 'Type a message… (Enter to send)'
               }
-              disabled={isFallbackMode}
             />
-            <Button
+            <button
               type="submit"
-              size="sm"
-              disabled={isFallbackMode || !input.trim() || isBotTyping}
+              disabled={isInputDisabled || !input.trim()}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-200"
+              title="Send message"
             >
-              Send
-            </Button>
+              {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            </button>
           </div>
         </form>
       </div>

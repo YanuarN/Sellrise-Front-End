@@ -1,44 +1,36 @@
 import api from './api';
 
 /**
- * Conversation Service  (US-4.5 – Centralized Conversation System)
+ * Conversation Service
  *
- * Wraps the /v1/conversations and /v1/conversations/:id/steps endpoints so
- * the WidgetSimulator (and any future widget consumer) can create sessions and
- * exchange messages without containing any placeholder / TODO logic.
+ * Wraps the centralised conversation API (/v1/conversations, /v1/steps).
+ * Used by the WidgetSimulator to replace the local keyword-matching
+ * placeholder with real, production-wired backend calls.
  */
 const conversationService = {
   /**
-   * Start a new conversation session.
+   * Start a new conversation for the given workspace.
+   * Calls POST /v1/conversations and returns the conversation object
+   * (which includes at least { id: string }).
    *
-   * @param {string} workspaceId - Workspace public key
-   * @param {string} [source]    - Identifier for the caller (e.g. 'widget_simulator')
-   * @returns {Promise<{id: string, session_id: string, [key: string]: any}>}
+   * @param {string} workspaceId - The workspace public key
+   * @returns {Promise<{ id: string }>}
    */
-  async startConversation(workspaceId, source = 'widget_simulator') {
-    return api.conversations.create({ workspace_id: workspaceId, source });
+  async startConversation(workspaceId) {
+    return api.conversations.create(workspaceId);
   },
 
   /**
-   * Get the current state of a conversation.
+   * Send a user message and advance the conversation by one step.
+   * Calls POST /v1/steps and returns the engine response
+   * (which includes at least { reply: string }).
    *
-   * @param {string} id - Conversation ID returned by startConversation
-   * @returns {Promise<object>}
+   * @param {string} conversationId - ID from startConversation
+   * @param {string} message        - The user's raw message text
+   * @returns {Promise<{ reply: string, stage_id?: string, slots?: object }>}
    */
-  async getConversation(id) {
-    return api.conversations.get(id);
-  },
-
-  /**
-   * Send a user message and receive the bot reply for a running conversation.
-   *
-   * @param {string} conversationId - Conversation ID
-   * @param {string} message        - User message text
-   * @param {Object} [slots]        - Current slot state
-   * @returns {Promise<{reply: string, slots?: Object, stage_id?: string, [key: string]: any}>}
-   */
-  async sendStep(conversationId, message, slots = {}) {
-    return api.conversations.step(conversationId, message, slots);
+  async sendStep(conversationId, message) {
+    return api.conversations.sendStep(conversationId, message);
   },
 };
 

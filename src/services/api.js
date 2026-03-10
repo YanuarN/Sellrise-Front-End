@@ -121,28 +121,6 @@ class ApiClient {
   }
 
   /**
-   * Conversations API  (US-4.5)
-   *
-   * POST /v1/conversations              – start a new conversation session
-   * GET  /v1/conversations/:id          – fetch conversation state
-   * POST /v1/conversations/:id/steps    – execute one conversation step (send msg, get reply)
-   */
-  conversations = {
-    create: (data) => this.post('/v1/conversations', data),
-
-    get: (id) => this.get(`/v1/conversations/${id}`),
-
-    /**
-     * Execute one step (send a user message and receive a bot reply).
-     * @param {string} id      – conversation ID
-     * @param {string} message – user message text
-     * @param {Object} slots   – current slot state (optional)
-     */
-    step: (id, message, slots = {}) =>
-      this.post(`/v1/conversations/${id}/steps`, { message, slots }),
-  };
-
-  /**
    * Scenarios API
    */
   scenarios = {
@@ -170,6 +148,18 @@ class ApiClient {
   };
 
   /**
+   * Analytics API
+   */
+  analytics = {
+    getSummary: () => this.get('/v1/analytics/summary'),
+    getFunnel: (params) => this.get('/v1/analytics/funnel', params),
+    getSources: (params) => this.get('/v1/analytics/sources', params),
+    getDropoff: (params) => this.get('/v1/analytics/dropoff', params),
+    exportLeads: (params) => this.get('/v1/analytics/export', params),
+  };
+
+
+  /**
    * Knowledge Base API
    */
   kb = {
@@ -193,6 +183,43 @@ class ApiClient {
     enhance: (data) => this.post('/v1/llm/enhance', data),
 
     generateConfig: (data) => this.post('/v1/llm/generate-config', data),
+  };
+
+  /**
+   * Conversations API
+   */
+  conversations = {
+    /**
+     * Start a new conversation session for a workspace.
+     * @param {string} workspaceId - Workspace public key
+     */
+    create: (workspaceId) =>
+      this.post('/v1/conversations', { workspace_id: workspaceId }),
+
+    /**
+     * Execute a conversation step (send a user message and receive the bot reply).
+     * @param {string} conversationId - ID returned by conversations.create
+     * @param {string} message        - The user's message text
+     */
+    sendStep: (conversationId, message) =>
+      this.post('/v1/steps', { conversation_id: conversationId, message }),
+  };
+
+  /**
+   * Widget API
+   */
+  widget = {
+    /**
+     * Initialise a widget session (domain handshake).
+     * @param {Object} payload - { domain, page_url, referrer, utm_* , timezone }
+     */
+    session: (payload) => this.post('/v1/widget/session', payload),
+
+    /**
+     * Submit a fallback lead capture form.
+     * @param {Object} payload - { name, email, phone, reason, correlation_id, page_url }
+     */
+    fallbackLead: (payload) => this.post('/v1/widget/fallback-lead', payload),
   };
 
   /**
