@@ -149,6 +149,7 @@
     var sessionId = config.sessionId    || ('sr_' + Date.now());
     var branding  = config.branding     || {};
     var position  = config.position     || 'bottom-right';
+    var scenario  = config.scenario     || null;
     var brandName = branding.brand_name || 'Sellrise';
     var brandColor= branding.brand_primary_color || '#2563eb';
 
@@ -260,6 +261,54 @@
     }
 
     /* ── Lead creation ─────────────────────────────────────────────────── */
+    function getGreetingFromScenario(name) {
+      /* Try to extract the first approved phrase from the scenario's first stage/task */
+      if (scenario && scenario.stages) {
+        var stages = scenario.stages;
+        /* stages may be an array (frontend format) or object (backend dict format) */
+        var firstStage = null;
+        if (Array.isArray(stages)) {
+          /* Sort by priority desc, find "first_message" or highest priority */
+          var sorted = stages.slice().sort(function(a, b) { return (b.priority || 0) - (a.priority || 0); });
+          for (var i = 0; i < sorted.length; i++) {
+            var ec = sorted[i].entry_condition;
+            if (ec && ec.type === 'first_message') { firstStage = sorted[i]; break; }
+          }
+          if (!firstStage) firstStage = sorted[0];
+        } else if (typeof stages === 'object') {
+          var keys = Object.keys(stages);
+          for (var k = 0; k < keys.length; k++) {
+            var s = stages[keys[k]];
+            var ec2 = s.entry_condition;
+            if (ec2 && ec2.type === 'first_message') { firstStage = s; break; }
+          }
+          if (!firstStage && keys.length) firstStage = stages[keys[0]];
+        }
+
+        if (firstStage) {
+          var tasks = firstStage.tasks;
+          var firstTask = null;
+          if (Array.isArray(tasks)) {
+            tasks.slice().sort(function(a, b) { return (b.priority || 0) - (a.priority || 0); });
+            firstTask = tasks[0];
+          } else if (tasks && typeof tasks === 'object') {
+            var tkeys = Object.keys(tasks);
+            if (tkeys.length) firstTask = tasks[tkeys[0]];
+          }
+          if (firstTask && firstTask.approved_phrases && firstTask.approved_phrases.length) {
+            var phrase = firstTask.approved_phrases[0];
+            /* Replace template vars */
+            phrase = phrase.replace(/\{name\}/gi, name.split(' ')[0]);
+            phrase = phrase.replace(/\{agent_name\}/gi, brandName);
+            phrase = phrase.replace(/\{company\}/gi, brandName);
+            return phrase;
+          }
+        }
+      }
+      /* Fallback to simple greeting */
+      return 'Hi ' + name.split(' ')[0] + '! How can I help you today?';
+    }
+
     function createLead(name, email, phone) {
       var btn = document.getElementById('sr-lead-submit');
       var errEl = document.getElementById('sr-lead-err');
@@ -280,7 +329,7 @@
           leadFormEl.style.display = 'none';
           inputRow.style.display = 'flex';
 
-          addMessage('bot', 'Hi ' + name.split(' ')[0] + '! How can I help you today?');
+          addMessage('bot', getGreetingFromScenario(name));
           document.getElementById('sr-input').focus();
         })
         .catch(function (err) {
