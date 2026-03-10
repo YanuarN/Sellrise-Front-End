@@ -74,7 +74,7 @@ export default function Domains() {
     workspaceKey: "${user?.workspace_id || 'wk_your_workspace_key'}",
   };
 </script>
-<script src="https://cdn.sellrise.ai/widget/v1/bundle.js" async></script>`;
+<script src="${import.meta.env.VITE_WIDGET_URL || 'http://localhost:5173/widget.js'}" async></script>`;
 
     const handleCopy = () => {
         navigator.clipboard.writeText(widgetSnippet);

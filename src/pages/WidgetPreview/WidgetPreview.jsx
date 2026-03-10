@@ -67,7 +67,7 @@ function WidgetPreview() {
     }
 
     var js = d.createElement('script');
-    js.src = 'https://cdn.sellrise.ai/widget.js';
+    js.src = '${import.meta.env.VITE_WIDGET_URL || "http://localhost:5173/widget.js"}';
     js.async = true;
 
     js.onload = function() {
