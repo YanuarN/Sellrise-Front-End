@@ -186,6 +186,43 @@ class ApiClient {
   };
 
   /**
+   * Conversations API
+   */
+  conversations = {
+    /**
+     * Start a new conversation session for a workspace.
+     * @param {string} workspaceId - Workspace public key
+     */
+    create: (workspaceId) =>
+      this.post('/v1/conversations', { workspace_id: workspaceId }),
+
+    /**
+     * Execute a conversation step (send a user message and receive the bot reply).
+     * @param {string} conversationId - ID returned by conversations.create
+     * @param {string} message        - The user's message text
+     */
+    sendStep: (conversationId, message) =>
+      this.post('/v1/steps', { conversation_id: conversationId, message }),
+  };
+
+  /**
+   * Widget API
+   */
+  widget = {
+    /**
+     * Initialise a widget session (domain handshake).
+     * @param {Object} payload - { domain, page_url, referrer, utm_* , timezone }
+     */
+    session: (payload) => this.post('/v1/widget/session', payload),
+
+    /**
+     * Submit a fallback lead capture form.
+     * @param {Object} payload - { name, email, phone, reason, correlation_id, page_url }
+     */
+    fallbackLead: (payload) => this.post('/v1/widget/fallback-lead', payload),
+  };
+
+  /**
    * File Upload API
    */
   async uploadFile(file, type = 'attachment') {
