@@ -3,6 +3,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 class ApiClient {
   constructor(baseURL) {
     this.baseURL = baseURL;
+    this.refreshPromise = null;
   }
 
   getAccessToken() {
@@ -17,21 +18,55 @@ class ApiClient {
     }
   }
 
+  isRefreshEligible(endpoint, skipAuthRefresh = false) {
+    if (skipAuthRefresh) return false;
+
+    if (endpoint.startsWith('/v1/widget/')) {
+      return false;
+    }
+
+    return ![
+      '/v1/auth/login',
+      '/v1/auth/refresh',
+      '/v1/auth/logout',
+      '/v1/auth/forgot-password',
+      '/v1/auth/reset-password',
+    ].some((path) => endpoint.startsWith(path));
+  }
+
+  handleSessionExpired() {
+    this.setAccessToken(null);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('auth:session-expired'));
+
+      if (window.location.pathname !== '/login') {
+        window.location.assign('/login');
+      }
+    }
+  }
+
   async request(endpoint, options = {}) {
+    const {
+      skipAuth = false,
+      skipAuthRefresh = false,
+      ...fetchOptions
+    } = options;
+
     const url = `${this.baseURL}${endpoint}`;
     const token = this.getAccessToken();
 
     const headers = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...fetchOptions.headers,
     };
 
-    if (token) {
+    if (token && !skipAuth) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
     const config = {
-      ...options,
+      ...fetchOptions,
       headers,
       credentials: 'include', // Send cookies (refresh_token)
     };
@@ -39,16 +74,23 @@ class ApiClient {
     let response = await fetch(url, config);
 
     // If 401, try to refresh token
-    if (response.status === 401 && token) {
+    if (response.status === 401 && this.isRefreshEligible(endpoint, skipAuthRefresh)) {
       const refreshed = await this.refreshToken();
       if (refreshed) {
         // Retry original request with new token
-        headers['Authorization'] = `Bearer ${this.getAccessToken()}`;
-        response = await fetch(url, { ...config, headers });
+        const refreshedToken = this.getAccessToken();
+        const retryHeaders = { ...headers };
+
+        if (refreshedToken && !skipAuth) {
+          retryHeaders['Authorization'] = `Bearer ${refreshedToken}`;
+        } else {
+          delete retryHeaders['Authorization'];
+        }
+
+        response = await fetch(url, { ...config, headers: retryHeaders });
       } else {
         // Refresh failed, clear auth
-        this.setAccessToken(null);
-        window.location.href = '/login';
+        this.handleSessionExpired();
         throw new Error('Session expired');
       }
     }
@@ -70,21 +112,34 @@ class ApiClient {
   }
 
   async refreshToken() {
-    try {
-      const response = await fetch(`${this.baseURL}/v1/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (!response.ok) return false;
-
-      const data = await response.json();
-      this.setAccessToken(data.access_token);
-      return true;
-    } catch {
-      return false;
+    if (this.refreshPromise) {
+      return this.refreshPromise;
     }
+
+    this.refreshPromise = (async () => {
+      try {
+        const response = await fetch(`${this.baseURL}/v1/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (!response.ok) {
+          this.setAccessToken(null);
+          return false;
+        }
+
+        const data = await response.json();
+        this.setAccessToken(data.access_token);
+        return true;
+      } catch {
+        return false;
+      } finally {
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
   }
 
   get(endpoint, params) {
@@ -102,8 +157,9 @@ class ApiClient {
     return this.request(url, { method: 'GET' });
   }
 
-  post(endpoint, body) {
+  post(endpoint, body, options = {}) {
     return this.request(endpoint, {
+      ...options,
       method: 'POST',
       body: body ? JSON.stringify(body) : undefined,
     });
@@ -250,19 +306,37 @@ class ApiClient {
    * File Upload API
    */
   async uploadFile(file, type = 'attachment') {
-    const token = this.getAccessToken();
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', type);
 
-    const response = await fetch(`${this.baseURL}/v1/files/upload`, {
+    const buildHeaders = () => {
+      const token = this.getAccessToken();
+      return token ? { 'Authorization': `Bearer ${token}` } : {};
+    };
+
+    let response = await fetch(`${this.baseURL}/v1/files/upload`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
+      headers: buildHeaders(),
       credentials: 'include',
       body: formData,
     });
+
+    if (response.status === 401) {
+      const refreshed = await this.refreshToken();
+
+      if (refreshed) {
+        response = await fetch(`${this.baseURL}/v1/files/upload`, {
+          method: 'POST',
+          headers: buildHeaders(),
+          credentials: 'include',
+          body: formData,
+        });
+      } else {
+        this.handleSessionExpired();
+        throw new Error('Session expired');
+      }
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'File upload failed' }));
