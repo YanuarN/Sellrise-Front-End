@@ -12,21 +12,53 @@ export default function KBDocumentList({ kbService, isAdmin, onRefreshArticles }
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchDocuments = async () => {
-    setLoading(true);
+  // Helper function to extract document ids to easily deep compare them later
+  const getDocumentStates = (docs) => docs.map((d) => `${d.id}:${d.status}`).join(',');
+
+  const fetchDocuments = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const data = await kbService.getDocuments();
-      setDocuments(Array.isArray(data) ? data : []);
+      const newDocs = Array.isArray(data) ? data : [];
+      
+      // If a document just completed, we should notify the parent to refresh articles
+      if (silent && documents.length > 0) {
+        const hasNewCompletions = newDocs.some(nd => 
+          nd.status === 'completed' && 
+          documents.find(od => od.id === nd.id)?.status !== 'completed'
+        );
+        if (hasNewCompletions && onRefreshArticles) {
+          onRefreshArticles();
+        }
+      }
+      
+      setDocuments(newDocs);
     } catch (err) {
       console.error('Failed to fetch documents:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
+  // Initial fetch
   useEffect(() => {
     fetchDocuments();
   }, []);
+
+  // Polling mechanism
+  useEffect(() => {
+    const hasActiveProcessing = documents.some(
+      (doc) => doc.status === 'pending' || doc.status === 'processing'
+    );
+
+    if (!hasActiveProcessing) return;
+
+    const interval = setInterval(() => {
+      fetchDocuments(true);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [getDocumentStates(documents)]);
 
   const handleDelete = async (doc) => {
     if (!confirm(`Delete "${doc.filename}"? This will not delete articles that were already created from it.`)) return;
