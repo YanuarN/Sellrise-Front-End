@@ -98,9 +98,9 @@ const PerfectForSection = () => {
 
                 {/* CTA */}
                 <div className="flex justify-center">
-                    <button className="px-10 py-3.5 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white text-[16px] font-bold transition-colors shadow-lg shadow-blue-500/20">
+                    <a href="/login" className="px-10 py-3.5 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white text-[16px] font-bold transition-colors shadow-lg shadow-blue-500/20 text-center">
                         Try for free
-                    </button>
+                    </a>
                 </div>
             </div>
         </section>

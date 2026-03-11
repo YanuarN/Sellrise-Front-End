@@ -83,9 +83,9 @@ const TestimonialsSection = () => {
                     <div className="relative z-10 flex flex-col items-center">
                         <h3 className="text-2xl md:text-[32px] font-bold mb-8 tracking-tight">Ready to see what Sellrise can do for you?</h3>
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                            <button className="w-full sm:w-auto px-8 py-3 rounded-full bg-white text-[#8B5CF6] text-[14px] font-semibold hover:shadow-lg transition-all">
+                            <a href="/login" className="w-full sm:w-auto px-8 py-3 rounded-full bg-white text-[#8B5CF6] text-[14px] font-semibold hover:shadow-lg transition-all text-center">
                                 Try demo
-                            </button>
+                            </a>
                             <button className="w-full sm:w-auto px-8 py-3 rounded-full bg-white/20 border border-white/40 text-white text-[14px] font-semibold backdrop-blur-sm transition-colors hover:bg-white/30">
                                 Talk to an expert
                             </button>
