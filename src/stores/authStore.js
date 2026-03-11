@@ -19,9 +19,9 @@ const withDevAdminRole = (user) => {
   return { ...user, role: 'admin' };
 };
 
-const useAuthStore = create((set, get) => ({
+const useAuthStore = create((set) => ({
   user: DEV_BYPASS_AUTH && DEV_FORCE_ADMIN_ROLE ? DEV_USER : null,
-  isAuthenticated: DEV_BYPASS_AUTH || !!localStorage.getItem('access_token'),
+  isAuthenticated: DEV_BYPASS_AUTH,
   isLoading: true,
   error: null,
 
@@ -52,6 +52,8 @@ const useAuthStore = create((set, get) => ({
   fetchUser: async () => {
     const token = localStorage.getItem('access_token');
 
+    set({ isLoading: true, error: null });
+
     if (DEV_BYPASS_AUTH && !token) {
       set({
         user: DEV_FORCE_ADMIN_ROLE ? DEV_USER : null,
@@ -61,32 +63,28 @@ const useAuthStore = create((set, get) => ({
       return;
     }
 
-    if (!token) {
-      set({ isLoading: false, isAuthenticated: false });
-      return;
-    }
-
     try {
+      if (!token) {
+        const refreshed = await api.refreshToken();
+
+        if (!refreshed) {
+          throw new Error('No active session');
+        }
+      }
+
       const user = withDevAdminRole(await authService.getMe());
       set({ user, isAuthenticated: true, isLoading: false });
     } catch {
-      // Token expired or invalid — try refresh
-      try {
-        await authService.refresh();
-        const user = withDevAdminRole(await authService.getMe());
-        set({ user, isAuthenticated: true, isLoading: false });
-      } catch {
-        api.setAccessToken(null);
-        if (DEV_BYPASS_AUTH) {
-          set({
-            user: DEV_FORCE_ADMIN_ROLE ? DEV_USER : null,
-            isAuthenticated: true,
-            isLoading: false,
-          });
-          return;
-        }
-        set({ user: null, isAuthenticated: false, isLoading: false });
+      api.setAccessToken(null);
+      if (DEV_BYPASS_AUTH) {
+        set({
+          user: DEV_FORCE_ADMIN_ROLE ? DEV_USER : null,
+          isAuthenticated: true,
+          isLoading: false,
+        });
+        return;
       }
+      set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },
 

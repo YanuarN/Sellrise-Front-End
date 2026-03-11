@@ -79,7 +79,7 @@ export default function KnowledgeBase() {
         title: item.title || '',
         body: item.body || '',
         category: item.category || '',
-        tags: (item.tags || []).join(', '),
+        tags: Array.isArray(item.tags) ? item.tags.join(', ') : (item.tags || ''),
         question: '',
         answer: '',
       });
