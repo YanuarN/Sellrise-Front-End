@@ -3,6 +3,9 @@ import { Upload, FileText, X, Loader, AlertCircle } from 'lucide-react';
 import { Button } from '../../../components';
 import api from '../../../services/api';
 
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
+const MAX_FILE_SIZE_LABEL = '2MB';
+
 function FileAttachment({ attachments, onChange }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
@@ -18,9 +21,9 @@ function FileAttachment({ attachments, onChange }) {
     try {
       const uploaded = [];
       for (const file of files) {
-        // Validate file size (10MB limit)
-        if (file.size > 10 * 1024 * 1024) {
-          throw new Error(`File ${file.name} exceeds 10MB limit`);
+        // Validate file size (2MB limit)
+        if (file.size > MAX_FILE_SIZE) {
+          throw new Error(`File ${file.name} exceeds the ${MAX_FILE_SIZE_LABEL} limit`);
         }
 
         // Validate file type
@@ -154,7 +157,9 @@ function FileAttachment({ attachments, onChange }) {
         <p className="text-xs text-blue-800">
           <strong>Supported formats:</strong> PDF, TXT, MD, JSON, CSV, DOCX
           <br />
-          <strong>Max size:</strong> 10MB per file
+          <strong>Max size:</strong> {MAX_FILE_SIZE_LABEL} per file
+          <br />
+          <strong>Recommendation:</strong> For better results, upload shorter documents whenever possible.
           <br />
           <strong>Purpose:</strong> These files provide context and knowledge to the LLM during conversations.
         </p>
