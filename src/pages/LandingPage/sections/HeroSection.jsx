@@ -32,9 +32,9 @@ const HeroSection = () => {
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-24">
-                    <button className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white text-[16px] font-bold transition-colors">
+                    <a href="/login" className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#0066FF] hover:bg-blue-700 text-white text-[16px] font-bold transition-colors text-center">
                         Try demo for free
-                    </button>
+                    </a>
                     <button className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#EEF2FF] hover:bg-blue-100 text-[#0066FF] text-[16px] font-bold transition-colors">
                         Book a quick call
                     </button>
