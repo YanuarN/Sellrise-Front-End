@@ -9,6 +9,8 @@ export { default as StatCard } from './StatCard';
 export { default as ScenarioCard } from './ScenarioCard';
 export { default as ScenarioSimulator } from './ScenarioSimulator';
 export { default as KBArticleItem } from './KBArticleItem';
+export { default as KBDocumentUpload } from './KBDocumentUpload';
+export { default as KBDocumentList } from './KBDocumentList';
 export { default as SettingsNavItem } from './SettingsNavItem';
 export { default as ProtectedRoute } from './ProtectedRoute';
 export { default as StepRenderer } from './StepRenderer';

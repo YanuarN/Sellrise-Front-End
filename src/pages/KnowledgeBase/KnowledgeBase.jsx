@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { FolderOpen, FileText, BookOpen, Search, Plus, Loader2, X, Trash2, Pencil } from 'lucide-react';
-import { Button, Input, PageHeader, KBArticleItem } from '../../components';
+import { FolderOpen, FileText, BookOpen, Search, Plus, Loader2, X, Trash2, Pencil, Upload } from 'lucide-react';
+import { Button, Input, PageHeader, KBArticleItem, KBDocumentUpload, KBDocumentList } from '../../components';
 import { kbService } from '../../services';
 import useAuthStore from '../../stores/authStore';
 
@@ -16,6 +16,8 @@ export default function KnowledgeBase() {
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({ title: '', body: '', category: '', tags: '', question: '', answer: '' });
   const [saving, setSaving] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [docListKey, setDocListKey] = useState(0);
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'admin';
 
@@ -166,6 +168,15 @@ export default function KnowledgeBase() {
             />
             {isAdmin && (
               <Button
+                className="bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/20 shrink-0 gap-2"
+                onClick={() => setShowUploadModal(true)}
+              >
+                <Upload className="w-4 h-4" />
+                Upload Document
+              </Button>
+            )}
+            {isAdmin && activeType !== 'documents' && (
+              <Button
                 className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20 shrink-0 gap-2"
                 onClick={() => {
                   setFormData({ title: '', body: '', category: '', tags: '', question: '', answer: '' });
@@ -218,11 +229,27 @@ export default function KnowledgeBase() {
             <BookOpen className={`w-5 h-5 ${activeType === 'faqs' ? '' : 'text-slate-400'}`} />
             FAQs
           </div>
+          <div
+            onClick={() => { setActiveType('documents'); setActiveCategory('all'); }}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer transition-colors ${
+              activeType === 'documents' ? 'bg-violet-50 text-violet-700' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <Upload className={`w-5 h-5 ${activeType === 'documents' ? '' : 'text-slate-400'}`} />
+            Documents
+          </div>
         </div>
 
         {/* Content List */}
         <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-          {loading ? (
+          {activeType === 'documents' ? (
+            <KBDocumentList
+              key={docListKey}
+              kbService={kbService}
+              isAdmin={isAdmin}
+              onRefreshArticles={() => fetchData()}
+            />
+          ) : loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
             </div>
@@ -394,6 +421,19 @@ export default function KnowledgeBase() {
           </div>
         </div>
       )}
+
+      {/* Document Upload Modal */}
+      <KBDocumentUpload
+        open={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        kbService={kbService}
+        onUploadComplete={() => {
+          // Refresh document list
+          setDocListKey((k) => k + 1);
+          // Also refresh articles since new ones were created
+          fetchData();
+        }}
+      />
     </div>
   );
 }
