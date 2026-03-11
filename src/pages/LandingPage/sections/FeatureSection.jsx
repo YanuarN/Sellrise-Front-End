@@ -36,31 +36,46 @@ const FeatureSection = () => {
                         {/* Right Content */}
                         <div>
                             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#050D2E] border border-slate-800 text-sm font-medium mb-8 text-white">
-                                <span>🤩</span> Omnichannel sales
+                                <span>🤩</span> Conversational sales system
                             </div>
                             <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-6 leading-[1.15]">
-                                Sell where your<br />customers chat
+                                A complete conversational<br />sales system
                             </h2>
                             <p className="text-slate-400 text-[17px] mb-12">
-                                Engage leads across WhatsApp, Instagram, TikTok, and more — from one smart AI agent that never misses a message.
+                                Built to automate sales conversations across channels while keeping interactions structured and measurable.
                             </p>
 
                             <div className="space-y-8">
                                 {[
                                     {
                                         icon: Sparkles,
-                                        title: 'Automated conversations',
-                                        body: 'Start, nurture, and close sales in chat — automatically, with brand-personalized flow.',
+                                        title: 'Instant answers to product questions',
+                                        body: 'Respond immediately to shopper questions with consistent, accurate product guidance.',
                                     },
                                     {
                                         icon: MessageSquare,
-                                        title: 'Instant replies',
-                                        body: 'Respond to every message in seconds, even during off-hours or at scale.',
+                                        title: 'Lead qualification through conversation',
+                                        body: 'Ask the right follow-up questions and collect structured lead information automatically.',
                                     },
                                     {
                                         icon: Layers,
-                                        title: 'Cross-platform sync',
-                                        body: 'Your AI agent works seamlessly across channels — no switching, no silos.',
+                                        title: 'Automated product recommendations',
+                                        body: 'Suggest relevant products based on customer intent and context in real time.',
+                                    },
+                                    {
+                                        icon: Sparkles,
+                                        title: 'Customer support automation',
+                                        body: 'Resolve common support requests quickly and route edge cases to your team.',
+                                    },
+                                    {
+                                        icon: MessageSquare,
+                                        title: 'Meeting booking and lead routing',
+                                        body: 'Book demos or consultations and send leads to the right owner automatically.',
+                                    },
+                                    {
+                                        icon: Layers,
+                                        title: 'Conversation analytics and insights',
+                                        body: 'Track performance by stage, identify drop-offs, and optimize conversion paths.',
                                     },
                                 ].map(({ icon: Icon, title, body }) => (
                                     <div key={title} className="flex gap-5">
@@ -82,11 +97,21 @@ const FeatureSection = () => {
                 <div className="pt-16 pb-8">
                     <div className="flex flex-col items-start text-left mb-10 max-w-[1000px] mx-auto relative px-4 md:px-0">
                         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#050D2E] border border-slate-800/80 text-[13px] font-medium mb-6 text-slate-300">
-                            <span>😎</span> Train, track, and manage your AI sales agent
+                            <span>😎</span> Structured platform architecture
                         </div>
                         <h2 className="text-4xl md:text-[44px] font-bold tracking-tight mb-14 text-white">
-                            All-in-one control center
+                            Powered by a structured AI conversation platform
                         </h2>
+                        <p className="text-slate-300 text-[16px] mb-4 max-w-[920px]">
+                            Sellrise runs on a conversation engine designed to automate sales and customer communication.
+                        </p>
+                        <p className="text-slate-300 text-[16px] mb-4 max-w-[920px]">
+                            The system organizes conversations into stages and tasks so every interaction follows a structured path.
+                        </p>
+                        <p className="text-slate-100 text-[17px] font-semibold mb-8">Architecture: Stage -&gt; Task -&gt; Action</p>
+                        <p className="text-slate-300 text-[16px] mb-10 max-w-[920px]">
+                            This makes automation reliable and easy to control.
+                        </p>
 
                         {/* Tabs */}
                         <div className="flex flex-wrap items-center justify-between w-full relative pb-4 md:pb-0 md:px-6">

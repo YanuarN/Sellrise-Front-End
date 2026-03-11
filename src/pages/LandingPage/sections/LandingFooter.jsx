@@ -1,4 +1,5 @@
 import { ChevronDown, MessageCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const FOOTER_LINKS = {
     Platform: ['WhatsApp', 'Instagram', 'TikTok', 'Telegram', 'Facebook Messenger', 'Website Chat'],
@@ -11,6 +12,8 @@ const FOOTER_LINKS = {
  * LandingFooter - Full footer with CTA form, links grid, and copyright.
  */
 const LandingFooter = () => {
+    const navigate = useNavigate();
+
     return (
         <footer className="bg-[#030712] pt-24 pb-12 text-slate-300 border-t-4 border-blue-600">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -18,9 +21,12 @@ const LandingFooter = () => {
                 {/* CTA + Form */}
                 <div className="text-center max-w-3xl mx-auto mb-24">
                     <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white mb-12 leading-[1.15]">
-                        Let AI sell for you — <br className="hidden md:block" />
-                        even while you sleep
+                        Start your automation setup
                     </h2>
+
+                    <p className="text-slate-300 text-[16px] mb-10 max-w-2xl mx-auto">
+                        Tell us about your business and sales process. We will design and deploy your conversational automation system.
+                    </p>
 
                     <form className="max-w-xl mx-auto space-y-4" onSubmit={(e) => e.preventDefault()}>
                         <div className="text-left space-y-1.5">
@@ -37,9 +43,18 @@ const LandingFooter = () => {
                                 <input type="tel" placeholder="+1 555 123 4567" className="flex-1 px-4 py-3.5 text-gray-900 placeholder-slate-400 focus:outline-none text-[15px]" />
                             </div>
                         </div>
-                        <button type="submit" className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white px-8 py-3.5 rounded-lg font-bold transition-colors shadow-lg shadow-blue-600/20 text-[15px]">
-                            Submit
-                        </button>
+                        <div className="grid sm:grid-cols-2 gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => navigate('/login')}
+                                className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white px-8 py-3.5 rounded-lg font-bold transition-colors shadow-lg shadow-blue-600/20 text-[15px]"
+                            >
+                                Start Integration
+                            </button>
+                            <button type="button" className="w-full mt-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white px-8 py-3.5 rounded-lg font-bold transition-colors text-[15px]">
+                                Book Demo
+                            </button>
+                        </div>
                     </form>
                 </div>
 
@@ -90,7 +105,7 @@ const LandingFooter = () => {
                 </div>
 
                 <div className="text-center text-[13px] text-slate-500 pb-4">
-                    Sellrise Limited, Registered in Hong Kong | Company Registration Number: 78104416
+                    Sellrise Limited | Business Registration Number (HK): 78104416 | Unit 1603, 16/F, The L. Plaza, 367-375 Queen's Road Central, Sheung Wan, Hong Kong
                 </div>
             </div>
         </footer>
