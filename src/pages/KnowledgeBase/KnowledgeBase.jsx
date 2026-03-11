@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FolderOpen, FileText, BookOpen, Search, Plus, Loader2, X, Trash2, Pencil, Upload } from 'lucide-react';
+import { FolderOpen, FileText, BookOpen, Search, Plus, Loader2, X, Trash2, Pencil, Upload, ChevronDown } from 'lucide-react';
 import { Button, Input, PageHeader, KBArticleItem, KBDocumentUpload, KBDocumentList } from '../../components';
 import { kbService } from '../../services';
 import useAuthStore from '../../stores/authStore';
@@ -14,6 +14,7 @@ export default function KnowledgeBase() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [categoriesExpanded, setCategoriesExpanded] = useState(true);
   const [formData, setFormData] = useState({ title: '', body: '', category: '', tags: '', question: '', answer: '' });
   const [saving, setSaving] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -24,14 +25,14 @@ export default function KnowledgeBase() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const category = activeCategory === 'all' ? undefined : activeCategory;
       const search = searchQuery || undefined;
 
+      // We no longer filter by category in the API to prevent unselected categories from disappearing
       if (activeType === 'articles') {
-        const data = await kbService.getArticles({ category, search });
+        const data = await kbService.getArticles({ search });
         setArticles(Array.isArray(data) ? data : data.items || []);
       } else {
-        const data = await kbService.getFaqs({ category, search });
+        const data = await kbService.getFaqs({ search });
         setFaqs(Array.isArray(data) ? data : data.items || []);
       }
     } catch (err) {
@@ -43,7 +44,7 @@ export default function KnowledgeBase() {
 
   useEffect(() => {
     fetchData();
-  }, [activeType, activeCategory]);
+  }, [activeType]);
 
   const handleSearch = () => fetchData();
 
@@ -140,10 +141,14 @@ export default function KnowledgeBase() {
     }
   };
 
-  const items = activeType === 'articles' ? articles : faqs;
+  const items = activeType === 'articles' ? articles || [] : faqs || [];
 
-  // Extract unique categories from items
+  // Extract unique categories from all items, then filter items for display
   const categories = ['all', ...new Set(items.map((i) => i.category).filter(Boolean))];
+  
+  const displayedItems = activeCategory === 'all' 
+    ? items 
+    : items.filter(item => item?.category === activeCategory);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
@@ -193,22 +198,31 @@ export default function KnowledgeBase() {
 
       <div className="flex gap-8 flex-1 overflow-hidden">
         {/* Sidebar */}
-        <div className="w-64 flex flex-col gap-2 shrink-0 border-r border-slate-200 pr-4">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-3 mb-2">Categories</h3>
-          {categories.map((cat) => (
-            <div
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer transition-colors ${
-                activeCategory === cat
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <FolderOpen className={`w-5 h-5 ${activeCategory === cat ? '' : 'text-slate-400'}`} />
-              {cat === 'all' ? 'All' : cat}
-            </div>
-          ))}
+        <div className="w-64 flex flex-col gap-2 shrink-0 border-r border-slate-200 pr-4 overflow-y-auto overflow-x-hidden max-h-full min-h-0 pb-8">
+          <div 
+            className="flex items-center justify-between cursor-pointer group mb-2 pl-3 hover:bg-slate-50 rounded-lg py-1 transition-colors shrink-0"
+            onClick={() => setCategoriesExpanded(!categoriesExpanded)}
+          >
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest group-hover:text-slate-600 transition-colors">Categories</h3>
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${categoriesExpanded ? 'rotate-180' : ''}`} />
+          </div>
+          
+          <div className={`space-y-1 overflow-y-auto overflow-x-hidden min-h-0 transition-all duration-300 ease-in-out ${categoriesExpanded ? 'max-h-[50vh] opacity-100 flex-1' : 'max-h-0 opacity-0'}`}>
+            {categories.map((cat) => (
+              <div
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium cursor-pointer transition-colors ${
+                  activeCategory === cat
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <FolderOpen className={`w-5 h-5 shrink-0 ${activeCategory === cat ? '' : 'text-slate-400'}`} />
+                <span className="truncate">{cat === 'all' ? 'All' : cat}</span>
+              </div>
+            ))}
+          </div>
 
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-3 mb-2 mt-6">Types</h3>
           <div
@@ -253,13 +267,13 @@ export default function KnowledgeBase() {
             <div className="flex items-center justify-center py-20">
               <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
             </div>
-          ) : items.length === 0 ? (
+          ) : displayedItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400">
               <p className="text-lg font-medium">No {activeType} found</p>
               <p className="text-sm mt-1">{isAdmin ? `Create your first ${activeType === 'articles' ? 'article' : 'FAQ'} to get started.` : 'No content available yet.'}</p>
             </div>
           ) : activeType === 'articles' ? (
-            articles.map((article) => (
+            displayedItems.map((article) => (
               <div key={article.id} className="group relative">
                 <KBArticleItem
                   title={article.title}
@@ -287,7 +301,7 @@ export default function KnowledgeBase() {
               </div>
             ))
           ) : (
-            faqs.map((faq) => (
+            displayedItems.map((faq) => (
               <div key={faq.id} className="group relative bg-white border border-slate-200 rounded-xl p-5 hover:shadow-md transition-all">
                 <h3 className="font-semibold text-slate-800 mb-2">{faq.question}</h3>
                 <p className="text-sm text-slate-500">{faq.answer}</p>
