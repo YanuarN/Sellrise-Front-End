@@ -1,5 +1,6 @@
 import React from 'react';
 import { Menu, X, ChevronDown, PlayCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Logo from '../../../assets/logo.png';
 
 /**
@@ -7,6 +8,7 @@ import Logo from '../../../assets/logo.png';
  */
 const LandingNavbar = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+    const navigate = useNavigate();
 
     return (
         <nav className="sticky top-0 z-50 bg-white border-b border-gray-100/50">
@@ -30,9 +32,12 @@ const LandingNavbar = () => {
                     </div>
 
                     <div className="hidden md:flex items-center space-x-4">
-                        <a href="/login" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-full text-[15px] font-semibold transition-colors flex items-center shadow-lg shadow-blue-600/20">
-                            Try Demo now <PlayCircle className="ml-2 w-4 h-4 fill-white text-blue-600" />
-                        </a>
+                        <button
+                            onClick={() => navigate('/login')}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-full text-[15px] font-semibold transition-colors flex items-center shadow-lg shadow-blue-600/20"
+                        >
+                            Start Integration <PlayCircle className="ml-2 w-4 h-4 fill-white text-blue-600" />
+                        </button>
                     </div>
 
                     {/* Mobile menu button */}
@@ -55,9 +60,12 @@ const LandingNavbar = () => {
                     <a href="#partners" className="block text-base font-medium text-gray-700">Partners</a>
                     <a href="#contacts" className="block text-base font-medium text-gray-700">Contacts</a>
                     <div className="pt-4 border-t border-gray-100 flex flex-col space-y-3">
-                        <a href="/login" className="w-full bg-blue-600 text-white px-5 py-2.5 rounded-full text-sm font-medium flex items-center justify-center">
-                            Try Demo now <PlayCircle className="ml-2 w-4 h-4 fill-white text-blue-600" />
-                        </a>
+                        <button
+                            onClick={() => navigate('/login')}
+                            className="w-full bg-blue-600 text-white px-5 py-2.5 rounded-full text-sm font-medium flex items-center justify-center"
+                        >
+                            Start Integration <PlayCircle className="ml-2 w-4 h-4 fill-white text-blue-600" />
+                        </button>
                     </div>
                 </div>
             )}
