@@ -20,6 +20,37 @@ const mockChartData = [
   { name: 'Sun', conversations: 0, leads: 0 },
 ];
 
+function toTitleCase(value) {
+  if (!value) return '';
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+function getGreetingName(user) {
+  const candidates = [
+    user?.full_name,
+    user?.name,
+    [user?.first_name, user?.last_name].filter(Boolean).join(' '),
+  ];
+
+  const preferredName = candidates
+    .map((name) => (typeof name === 'string' ? name.trim() : ''))
+    .find((name) => name && !/^sellrise$/i.test(name));
+
+  if (preferredName) {
+    const [firstToken] = preferredName.split(/\s+/);
+    return toTitleCase(firstToken);
+  }
+
+  const emailLocalPart = user?.email?.split('@')?.[0]?.trim();
+  if (emailLocalPart) {
+    const normalized = emailLocalPart.replace(/[._-]+/g, ' ').trim();
+    const [firstToken] = normalized.split(/\s+/);
+    if (firstToken) return toTitleCase(firstToken);
+  }
+
+  return 'there';
+}
+
 function Dashboard() {
   const [timeRange, setTimeRange] = useState('7d');
   const [analytics, setAnalytics] = useState(null);
@@ -53,7 +84,7 @@ function Dashboard() {
   const coldLeads = analytics?.leads_by_score?.cold ?? 0;
   const totalEvents = analytics?.total_widget_events ?? 0;
   const leadsByStage = analytics?.leads_by_stage ?? {};
-  const userName = user?.full_name?.split(' ')[0] || 'there';
+  const userName = getGreetingName(user);
 
   return (
     <div className="h-full bg-[#FAFCFF] p-4 md:p-8 space-y-6 md:space-y-8 overflow-auto no-scrollbar selection:bg-blue-100">
