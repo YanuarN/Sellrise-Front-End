@@ -38,6 +38,24 @@ const useAuthStore = create((set) => ({
     }
   },
 
+  signup: async ({ fullName, email, password, workspaceName }) => {
+    set({ error: null, isLoading: true });
+    try {
+      await authService.register({
+        full_name: fullName,
+        email,
+        password,
+        workspace_name: workspaceName,
+      });
+      const user = withDevAdminRole(await authService.getMe());
+      set({ user, isAuthenticated: true, isLoading: false });
+      return user;
+    } catch (err) {
+      set({ error: err.message || 'Sign up failed', isLoading: false });
+      throw err;
+    }
+  },
+
   logout: async () => {
     try {
       await authService.logout();

@@ -150,7 +150,7 @@
     var branding  = config.branding     || {};
     var position  = config.position     || 'bottom-right';
     var scenario  = config.scenario     || null;
-    var brandName = branding.brand_name || 'Sellrise';
+    var brandName = branding.brand_name || 'Plashic';
     var brandColor= branding.brand_primary_color || '#2563eb';
 
     /* Apply brand colour to any --sr-color var in the injected CSS */
@@ -306,7 +306,7 @@
         }
       }
       /* Fallback to simple greeting */
-      return 'Hi ' + name.split(' ')[0] + '! How can I help you today?';
+      return 'Hi ' + name.split(' ')[0] + '! I am the Plasthic Web assistant. How can I help you today?';
     }
 
     function createLead(name, email, phone) {
