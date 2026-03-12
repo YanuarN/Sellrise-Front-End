@@ -1,6 +1,15 @@
 import api from './api';
 
 const authService = {
+  async register(payload) {
+    const data = await api.post('/v1/auth/register', payload, {
+      skipAuth: true,
+      skipAuthRefresh: true,
+    });
+    api.setAccessToken(data.access_token);
+    return data;
+  },
+
   async login(email, password) {
     const data = await api.post('/v1/auth/login', { email, password }, {
       skipAuth: true,

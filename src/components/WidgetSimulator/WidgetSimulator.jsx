@@ -2,6 +2,39 @@ import { useEffect, useRef, useState } from 'react';
 import { X, RotateCcw, AlertTriangle, Send, Bot, User, Loader2 } from 'lucide-react';
 import { Button } from '../Button';
 import api from '../../services/api';
+import { domainService, scenarioService, workspaceService } from '../../services';
+
+function pickDisplayName(...candidates) {
+  return candidates.find((value) => typeof value === 'string' && value.trim())?.trim() || 'Plasthic';
+}
+
+function getGreetingFromScenario(scenarioConfig, visitorName, brandName) {
+  const firstName = (visitorName || 'there').trim().split(/\s+/)[0] || 'there';
+  const resolvedBrandName = brandName || 'Plasthic';
+
+  if (scenarioConfig?.stages) {
+    const stages = Array.isArray(scenarioConfig.stages)
+      ? scenarioConfig.stages.slice().sort((a, b) => (b.priority || 0) - (a.priority || 0))
+      : Object.values(scenarioConfig.stages || {});
+
+    const firstStage =
+      stages.find((stage) => stage?.entry_condition?.type === 'first_message') || stages[0];
+
+    const tasks = Array.isArray(firstStage?.tasks)
+      ? firstStage.tasks.slice().sort((a, b) => (b.priority || 0) - (a.priority || 0))
+      : Object.values(firstStage?.tasks || {});
+
+    const phrase = tasks[0]?.approved_phrases?.[0];
+    if (phrase) {
+      return phrase
+        .replace(/\{name\}/gi, firstName)
+        .replace(/\{agent_name\}/gi, resolvedBrandName)
+        .replace(/\{company\}/gi, resolvedBrandName);
+    }
+  }
+
+  return `Hi ${firstName}! I am the Plasthic Web assistant. How can I help you today?`;
+}
 
 /**
  * WidgetSimulator
@@ -23,6 +56,8 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
   const [input, setInput] = useState('');
   const [leadId, setLeadId] = useState(null);
   const [sessionId] = useState(() => `sim-${Date.now()}`);
+  const [resolvedBrandName, setResolvedBrandName] = useState(workspaceName);
+  const [publishedScenarioConfig, setPublishedScenarioConfig] = useState(null);
   const [isInitialising, setIsInitialising] = useState(true);
   const [initError, setInitError] = useState(null);
   const [isSending, setIsSending] = useState(false);
@@ -34,6 +69,76 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isSending]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWidgetContext() {
+      try {
+        const [workspace, domains, scenarios] = await Promise.all([
+          workspaceId ? workspaceService.getWorkspace(workspaceId) : Promise.resolve(null),
+          domainService.getDomains().catch(() => []),
+          scenarioService.getScenarios().catch(() => []),
+        ]);
+
+        if (cancelled) return;
+
+        const activeDomain = (Array.isArray(domains) ? domains : []).find((domain) => domain.is_active) || domains?.[0];
+        const publishedScenario = (Array.isArray(scenarios) ? scenarios : []).find((scenario) => scenario.is_published);
+        setResolvedBrandName(
+          pickDisplayName(
+            activeDomain?.brand_name,
+            publishedScenario?.name,
+            workspace?.name,
+            workspaceName,
+            'Plasthic',
+          ),
+        );
+
+        if (publishedScenario?.id) {
+          const scenarioDetail = await scenarioService.getScenario(publishedScenario.id);
+          if (!cancelled) {
+            setPublishedScenarioConfig(scenarioDetail?.config || null);
+            setResolvedBrandName(
+              pickDisplayName(
+                activeDomain?.brand_name,
+                scenarioDetail?.name,
+                publishedScenario?.name,
+                workspace?.name,
+                workspaceName,
+                'Plasthic',
+              ),
+            );
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setResolvedBrandName(pickDisplayName(workspaceName, 'Plasthic'));
+        }
+      }
+    }
+
+    loadWidgetContext();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, workspaceName]);
+
+  const initialGreeting = getGreetingFromScenario(
+    publishedScenarioConfig,
+    'Simulator User',
+    resolvedBrandName,
+  );
+
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length !== 1 || prev[0]?.role !== 'bot') return prev;
+      if (prev[0].content === initialGreeting) return prev;
+
+      return [{ ...prev[0], content: initialGreeting }];
+    });
+  }, [initialGreeting]);
 
   // Start the conversation session as soon as the simulator opens.
   useEffect(() => {
@@ -58,7 +163,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
           {
             id: 1,
             role: 'bot',
-            content: `Hi! I am the ${workspaceName} assistant. How can I help you today?`,
+            content: initialGreeting,
           },
         ]);
       } catch (err) {
@@ -78,7 +183,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, workspaceName]);
+  }, [workspaceId]);
 
   const pushBotMessage = (content) => {
     setMessages((prev) => [
@@ -145,7 +250,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
         {
           id: 1,
           role: 'bot',
-          content: `Hi! I am the ${workspaceName} assistant. How can I help you today?`,
+          content: initialGreeting,
         },
       ]);
     } catch (err) {
@@ -175,7 +280,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
             </div>
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Widget Simulator</h3>
-              <p className="text-xs text-gray-500">{workspaceName}</p>
+              <p className="text-xs text-gray-500">{resolvedBrandName}</p>
             </div>
           </div>
           <button

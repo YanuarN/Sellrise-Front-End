@@ -11,7 +11,8 @@ export default function Scenarios() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [formData, setFormData] = useState({ name: '', description: '', config: '{}' });
+  const [formData, setFormData] = useState({ name: '', description: '', config: '' });
+  const [configError, setConfigError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [simulatingScenario, setSimulatingScenario] = useState(null);
   const user = useAuthStore((s) => s.user);
@@ -38,15 +39,31 @@ export default function Scenarios() {
     setSaving(true);
     try {
       let config;
-      try { config = JSON.parse(formData.config); } catch { config = {}; }
-      await scenarioService.createScenario({
+      try {
+        config = formData.config.trim() ? JSON.parse(formData.config) : {};
+      } catch {
+        setConfigError('Invalid JSON – please check syntax');
+        setSaving(false);
+        return;
+      }
+      if (config === null || typeof config !== 'object' || Array.isArray(config)) {
+        setConfigError('Config must be a JSON object');
+        setSaving(false);
+        return;
+      }
+      setConfigError(null);
+      const created = await scenarioService.createScenario({
         name: formData.name,
         description: formData.description,
         config,
       });
       setShowCreateModal(false);
-      setFormData({ name: '', description: '', config: '{}' });
-      fetchScenarios();
+      setFormData({ name: '', description: '', config: '' });
+      await fetchScenarios();
+      // Navigate to the full editor so users can continue editing
+      if (created?.id) {
+        navigate(`/scenario-config?id=${created.id}`);
+      }
     } catch (err) {
       console.error('Failed to create scenario:', err);
     } finally {
@@ -99,7 +116,7 @@ export default function Scenarios() {
             {isAdmin && (
               <Button
                 className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/20 shrink-0 gap-2"
-                onClick={() => { setFormData({ name: '', description: '', config: '{}' }); setShowCreateModal(true); }}
+                onClick={() => { setFormData({ name: '', description: '', config: '' }); setConfigError(null); setShowCreateModal(true); }}
               >
                 <Plus className="w-4 h-4" />
                 New Scenario
@@ -168,6 +185,25 @@ export default function Scenarios() {
                   className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none h-20"
                   placeholder="Describe what this scenario does..."
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Config JSON <span className="text-slate-400 font-normal">(optional – you can edit later)</span>
+                </label>
+                <textarea
+                  value={formData.config}
+                  onChange={(e) => { setFormData({ ...formData, config: e.target.value }); setConfigError(null); }}
+                  className={`w-full border rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 resize-none h-32 ${
+                    configError
+                      ? 'border-red-300 focus:ring-red-500/20 focus:border-red-500 bg-red-50'
+                      : 'border-slate-200 focus:ring-blue-500/20 focus:border-blue-500'
+                  }`}
+                  placeholder='{"version": "1.0", "stages": [...] }'
+                  spellCheck={false}
+                />
+                {configError && (
+                  <p className="text-xs text-red-600 mt-1">{configError}</p>
+                )}
               </div>
             </div>
 
