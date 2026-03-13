@@ -3,7 +3,7 @@ import { Sidebar } from '../Sidebar';
 import { Menu, X, Briefcase } from 'lucide-react';
 
 const MainLayout = ({ children }) => {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false); // start collapsed to match image or false? let's default to false since user just showed it? Wait, let's set it to false for now or true. Let's do false.
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     return (
         <div className="flex flex-col md:flex-row h-screen bg-[#f3f4f6] overflow-hidden">
