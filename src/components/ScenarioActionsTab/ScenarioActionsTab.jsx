@@ -24,8 +24,8 @@ export default function ScenarioActionsTab({ config, updateConfig }) {
   };
 
   const renameAction = (oldTag, newTag) => {
-    if (!newTag || newTag === oldTag || config.actions_catalog[newTag]) return;
     const normalizedTag = newTag.startsWith('#') ? newTag : `#${newTag}`;
+    if (!newTag || normalizedTag === oldTag || config.actions_catalog[normalizedTag]) return;
     updateConfig((draft) => {
       const value = draft.actions_catalog[oldTag];
       delete draft.actions_catalog[oldTag];
@@ -67,20 +67,23 @@ export default function ScenarioActionsTab({ config, updateConfig }) {
             {entries.map(([tag, value]) => (
               <div
                 key={tag}
-                className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100"
+                className="grid grid-cols-[auto,minmax(0,1fr),11rem,auto] items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100"
               >
                 <Hash className="w-4 h-4 text-slate-400 shrink-0" />
                 <input
                   type="text"
                   defaultValue={tag}
                   onBlur={(e) => renameAction(tag, e.target.value.trim())}
-                  className={`${SCENARIO_CONFIG_INPUT_CLS} flex-1 font-mono text-xs`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                  }}
+                  className={`${SCENARIO_CONFIG_INPUT_CLS} min-w-0 font-mono text-xs`}
                   placeholder="#action_tag"
                 />
                 <select
                   value={value.type || 'custom'}
                   onChange={(e) => updateAction(tag, 'type', e.target.value)}
-                  className={`${SCENARIO_CONFIG_INPUT_CLS} w-44 text-xs`}
+                  className={`${SCENARIO_CONFIG_INPUT_CLS} text-xs`}
                 >
                   {ACTION_TYPES.map((actionType) => (
                     <option key={actionType.value} value={actionType.value}>

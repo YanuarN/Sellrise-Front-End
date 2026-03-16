@@ -8,32 +8,62 @@ function pickDisplayName(...candidates) {
   return candidates.find((value) => typeof value === 'string' && value.trim())?.trim() || 'Plasthic';
 }
 
-function getGreetingFromScenario(scenarioConfig, visitorName, brandName) {
+function applyScenarioVariables(text, visitorName, brandName) {
+  if (typeof text !== 'string') return '';
   const firstName = (visitorName || 'there').trim().split(/\s+/)[0] || 'there';
   const resolvedBrandName = brandName || 'Plasthic';
 
-  if (scenarioConfig?.stages) {
-    const stages = Array.isArray(scenarioConfig.stages)
-      ? scenarioConfig.stages.slice().sort((a, b) => (b.priority || 0) - (a.priority || 0))
-      : Object.values(scenarioConfig.stages || {});
+  return text
+    .replace(/\{name\}/gi, firstName)
+    .replace(/\{first_name\}/gi, firstName)
+    .replace(/\{agent_name\}/gi, resolvedBrandName)
+    .replace(/\{company\}/gi, resolvedBrandName);
+}
 
-    const firstStage =
-      stages.find((stage) => stage?.entry_condition?.type === 'first_message') || stages[0];
+function sortByPriorityDesc(items) {
+  return (Array.isArray(items) ? items : []).slice().sort((a, b) => (b?.priority || 0) - (a?.priority || 0));
+}
 
-    const tasks = Array.isArray(firstStage?.tasks)
-      ? firstStage.tasks.slice().sort((a, b) => (b.priority || 0) - (a.priority || 0))
-      : Object.values(firstStage?.tasks || {});
+function getInitialMessageFromScenario(scenarioConfig, visitorName, brandName) {
+  if (!scenarioConfig || typeof scenarioConfig !== 'object') return null;
 
-    const phrase = tasks[0]?.approved_phrases?.[0];
-    if (phrase) {
-      return phrase
-        .replace(/\{name\}/gi, firstName)
-        .replace(/\{agent_name\}/gi, resolvedBrandName)
-        .replace(/\{company\}/gi, resolvedBrandName);
-    }
+  // Legacy (step-based) scenarios
+  if (scenarioConfig.entry_step_id && scenarioConfig.steps) {
+    const entryStep = scenarioConfig.steps?.[scenarioConfig.entry_step_id];
+    const stepText =
+      entryStep?.content ||
+      entryStep?.message ||
+      entryStep?.text ||
+      entryStep?.question ||
+      entryStep?.prompt;
+
+    const resolved = applyScenarioVariables(stepText, visitorName, brandName);
+    return resolved.trim() ? resolved : null;
   }
 
-  return `Hi ${firstName}! I am the Plasthic Web assistant. How can I help you today?`;
+  // Stage-based scenarios
+  if (scenarioConfig.stages) {
+    const stages = Array.isArray(scenarioConfig.stages)
+      ? sortByPriorityDesc(scenarioConfig.stages)
+      : sortByPriorityDesc(Object.values(scenarioConfig.stages || {}));
+
+    const firstStage = stages.find((stage) => stage?.entry_condition?.type === 'first_message') || stages[0];
+    if (!firstStage) return null;
+
+    const tasks = Array.isArray(firstStage.tasks)
+      ? sortByPriorityDesc(firstStage.tasks)
+      : sortByPriorityDesc(Object.values(firstStage.tasks || {}));
+
+    for (const task of tasks) {
+      const phrase = task?.approved_phrases?.[0] || task?.fallback_phrases?.[0];
+      const resolved = applyScenarioVariables(phrase, visitorName, brandName);
+      if (resolved.trim()) return resolved;
+    }
+
+    return null;
+  }
+
+  return null;
 }
 
 /**
@@ -58,6 +88,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
   const [sessionId] = useState(() => `sim-${Date.now()}`);
   const [resolvedBrandName, setResolvedBrandName] = useState(workspaceName);
   const [publishedScenarioConfig, setPublishedScenarioConfig] = useState(null);
+  const [isContextLoading, setIsContextLoading] = useState(true);
   const [isInitialising, setIsInitialising] = useState(true);
   const [initError, setInitError] = useState(null);
   const [isSending, setIsSending] = useState(false);
@@ -74,6 +105,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     let cancelled = false;
 
     async function loadWidgetContext() {
+      setIsContextLoading(true);
       try {
         const [workspace, domains, scenarios] = await Promise.all([
           workspaceId ? workspaceService.getWorkspace(workspaceId) : Promise.resolve(null),
@@ -115,6 +147,8 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
         if (!cancelled) {
           setResolvedBrandName(pickDisplayName(workspaceName, 'Plasthic'));
         }
+      } finally {
+        if (!cancelled) setIsContextLoading(false);
       }
     }
 
@@ -125,20 +159,11 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     };
   }, [workspaceId, workspaceName]);
 
-  const initialGreeting = getGreetingFromScenario(
+  const initialGreeting = getInitialMessageFromScenario(
     publishedScenarioConfig,
     'Simulator User',
     resolvedBrandName,
   );
-
-  useEffect(() => {
-    setMessages((prev) => {
-      if (prev.length !== 1 || prev[0]?.role !== 'bot') return prev;
-      if (prev[0].content === initialGreeting) return prev;
-
-      return [{ ...prev[0], content: initialGreeting }];
-    });
-  }, [initialGreeting]);
 
   // Start the conversation session as soon as the simulator opens.
   useEffect(() => {
@@ -147,6 +172,18 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     async function init() {
       setIsInitialising(true);
       setInitError(null);
+
+      if (isContextLoading) return;
+      if (!publishedScenarioConfig) {
+        setInitError('No published scenario found for this workspace. Publish a scenario to simulate the chatbot.');
+        setIsInitialising(false);
+        return;
+      }
+      if (!initialGreeting) {
+        setInitError('Published scenario does not define an initial message. Add an opening phrase in the first stage/task (approved_phrases or fallback_phrases).');
+        setIsInitialising(false);
+        return;
+      }
 
       try {
         // Create a simulator lead via the public widget API
@@ -183,7 +220,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     return () => {
       cancelled = true;
     };
-  }, [workspaceId]);
+  }, [workspaceId, isContextLoading, publishedScenarioConfig, initialGreeting]);
 
   const pushBotMessage = (content) => {
     setMessages((prev) => [
@@ -238,6 +275,18 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     setIsInitialising(true);
     setInitError(null);
 
+    if (isContextLoading) return;
+    if (!publishedScenarioConfig) {
+      setInitError('No published scenario found for this workspace. Publish a scenario to simulate the chatbot.');
+      setIsInitialising(false);
+      return;
+    }
+    if (!initialGreeting) {
+      setInitError('Published scenario does not define an initial message. Add an opening phrase in the first stage/task (approved_phrases or fallback_phrases).');
+      setIsInitialising(false);
+      return;
+    }
+
     try {
       const res = await api.widget.createLead({
         workspace_id: workspaceId,
@@ -267,7 +316,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     pushBotMessage(fallbackMessage || 'Please leave your details and our team will contact you shortly.');
   };
 
-  const isInputDisabled = isFallbackMode || isSending || isInitialising || !!initError || !leadId;
+  const isInputDisabled = isFallbackMode || isSending || isInitialising || isContextLoading || !!initError || !leadId;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

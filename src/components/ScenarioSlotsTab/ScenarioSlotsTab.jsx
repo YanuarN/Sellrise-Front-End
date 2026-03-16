@@ -67,20 +67,23 @@ export default function ScenarioSlotsTab({ config, updateConfig }) {
             {entries.map(([key, value]) => (
               <div
                 key={key}
-                className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100"
+                className="grid grid-cols-[auto,minmax(0,1fr),7rem,auto,auto] items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100"
               >
                 <GripVertical className="w-4 h-4 text-slate-300 shrink-0" />
                 <input
                   type="text"
                   defaultValue={key}
                   onBlur={(e) => renameSlot(key, e.target.value.trim().replace(/\s+/g, '_'))}
-                  className={`${SCENARIO_CONFIG_INPUT_CLS} flex-1 font-mono text-xs`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                  }}
+                  className={`${SCENARIO_CONFIG_INPUT_CLS} min-w-0 font-mono text-xs`}
                   placeholder="slot_name"
                 />
                 <select
                   value={value.type || 'string'}
                   onChange={(e) => updateSlot(key, 'type', e.target.value)}
-                  className={`${SCENARIO_CONFIG_INPUT_CLS} w-28 text-xs`}
+                  className={`${SCENARIO_CONFIG_INPUT_CLS} text-xs`}
                 >
                   {SLOT_TYPES.map((typeOption) => (
                     <option key={typeOption.value} value={typeOption.value}>
