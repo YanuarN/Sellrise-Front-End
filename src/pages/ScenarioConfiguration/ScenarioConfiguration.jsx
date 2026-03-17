@@ -252,7 +252,7 @@ export default function ScenarioConfiguration() {
 
       {showSimulator && h.scenarioId && (
         <ScenarioSimulator
-          scenario={{ id: h.scenarioId, name: h.name }}
+          scenario={{ id: h.scenarioId, name: h.name, config: h.config }}
           onClose={() => setShowSimulator(false)}
         />
       )}

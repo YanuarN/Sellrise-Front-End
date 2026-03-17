@@ -185,6 +185,7 @@
     var isSending = false;
     var isUploading = false;
     var pendingAttachment = null;
+    var hasShownGreeting = false;
 
     /* ── DOM ───────────────────────────────────────────────────────────── */
     var container = el('div', { id: 'sr-widget-root' });
@@ -363,10 +364,9 @@
       })
         .then(function (res) {
           leadId = res.lead_id;
+          hasShownGreeting = false;
           leadFormEl.style.display = 'none';
           inputRow.style.display = 'flex';
-
-          addMessage('bot', getGreetingFromScenario(name));
           document.getElementById('sr-input').focus();
         })
         .catch(function (err) {
@@ -381,6 +381,7 @@
     function sendMessage(text) {
       if ((!text.trim() && !pendingAttachment) || isSending || isUploading || !leadId) return;
       isSending = true;
+      var isFirstTurn = !hasShownGreeting;
       var curAttachment = pendingAttachment;
       pendingAttachment = null;
       document.getElementById('sr-preview-row').style.display = 'none';
@@ -406,6 +407,11 @@
       postJSON(apiBase + '/v1/widget/message', payload)
         .then(function (res) {
           hideTyping();
+          if (isFirstTurn) {
+            hasShownGreeting = true;
+            addMessage('bot', getGreetingFromScenario(document.getElementById('sr-name').value || 'there'));
+            return;
+          }
           addMessage('bot', res.bot_reply || '(no reply)');
         })
         .catch(function (err) {
