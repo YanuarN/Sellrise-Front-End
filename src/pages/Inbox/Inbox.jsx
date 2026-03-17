@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Button, Input, Badge, PageHeader } from '../../components';
 import leadService from '../../services/leadService';
+import { API_BASE_URL } from '../../services/api';
 import useAuthStore from '../../stores/authStore';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -105,6 +106,7 @@ function Transcript({ events }) {
         <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-3 space-y-3">
             {sorted.map((ev) => {
                 const bot = isBot(ev);
+                const atts = ev.event_metadata?.attachments || ev.data?.metadata?.attachments || ev.data?.attachments;
                 return (
                     <div key={ev.id} className={`flex ${bot ? 'justify-start' : 'justify-end'}`}>
                         <div className={`max-w-[72%] rounded-2xl px-4 py-2 text-sm shadow-sm
@@ -112,6 +114,13 @@ function Transcript({ events }) {
                                 ? 'bg-slate-100 text-slate-700 rounded-tl-sm'
                                 : 'bg-blue-600 text-white rounded-tr-sm'
                             }`}>
+                            {atts && atts.length > 0 && (
+                                <div className="mb-2 space-y-2">
+                                    {atts.map((url, i) => (
+                                        <img key={i} src={url.startsWith('/') ? `${API_BASE_URL}${url}` : url} alt="Attachment" className="max-w-full rounded-lg border border-white/20" />
+                                    ))}
+                                </div>
+                            )}
                             <p className="leading-snug">{eventLabel(ev)}</p>
                             <p className={`text-[10px] mt-1 ${bot ? 'text-slate-400' : 'text-blue-200'}`}>
                                 {bot ? '🤖 Bot' : '👤 Visitor'} · {formatTime(ev.created_at)}
