@@ -182,11 +182,6 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
         setIsInitialising(false);
         return;
       }
-      if (!initialGreeting) {
-        setInitError('Published scenario does not define an initial message. Add an opening phrase in the first stage/task (approved_phrases or fallback_phrases).');
-        setIsInitialising(false);
-        return;
-      }
 
       try {
         // Create a simulator lead via the public widget API
@@ -199,13 +194,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
         if (cancelled) return;
 
         setLeadId(res.lead_id);
-        setMessages([
-          {
-            id: 1,
-            role: 'bot',
-            content: initialGreeting,
-          },
-        ]);
+        setMessages([]);
       } catch (err) {
         if (!cancelled) {
           setInitError(err.message || 'Failed to start conversation. Check your connection and try again.');
@@ -265,6 +254,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
 
     const trimmed = input.trim();
     if ((!trimmed && !pendingAttachment) || isFallbackMode || isSending || isUploading || !leadId) return;
+    const isFirstTurn = !messages.some((message) => message.role === 'user');
 
     const curAttachment = pendingAttachment;
     setPendingAttachment(null);
@@ -288,7 +278,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
         payload.attachments = [curAttachment];
       }
       const res = await api.widget.sendMessage(payload);
-      pushBotMessage(res.bot_reply || '[No response]');
+      pushBotMessage((isFirstTurn && initialGreeting) || res.bot_reply || '[No response]');
     } catch (err) {
       pushBotMessage(`Error: ${err.message || 'Could not get a response. Please try again.'}`);
     } finally {
@@ -319,11 +309,6 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
       setIsInitialising(false);
       return;
     }
-    if (!initialGreeting) {
-      setInitError('Published scenario does not define an initial message. Add an opening phrase in the first stage/task (approved_phrases or fallback_phrases).');
-      setIsInitialising(false);
-      return;
-    }
 
     try {
       const res = await api.widget.createLead({
@@ -333,13 +318,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
         consent_given: true,
       });
       setLeadId(res.lead_id);
-      setMessages([
-        {
-          id: 1,
-          role: 'bot',
-          content: initialGreeting,
-        },
-      ]);
+      setMessages([]);
     } catch (err) {
       setInitError(err.message || 'Failed to restart conversation.');
     } finally {
@@ -410,6 +389,14 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               <p className="font-medium">Could not start conversation</p>
               <p className="mt-1 text-xs">{initError}</p>
+            </div>
+          )}
+
+          {!isInitialising && !initError && messages.length === 0 && (
+            <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-gray-400">
+              <Bot size={28} className="text-gray-300" />
+              <p className="text-sm font-medium">Send the first message</p>
+              <p className="max-w-xs text-xs">The widget will show the configured greeting after the visitor sends the first message.</p>
             </div>
           )}
 

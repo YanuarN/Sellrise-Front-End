@@ -450,6 +450,10 @@ export default function Leads() {
                       <p className="text-sm font-medium text-slate-700 mt-1">{selectedLead.timeframe || '—'}</p>
                     </div>
                     <div className="bg-slate-50 rounded-xl p-3">
+                      <span className="text-xs font-semibold text-slate-400 uppercase">Consultation Time</span>
+                      <p className="text-sm font-medium text-slate-700 mt-1">{selectedLead.appointment_time || '—'}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-3">
                       <span className="text-xs font-semibold text-slate-400 uppercase">Goal</span>
                       <p className="text-sm font-medium text-slate-700 mt-1">{selectedLead.goal || '—'}</p>
                     </div>
