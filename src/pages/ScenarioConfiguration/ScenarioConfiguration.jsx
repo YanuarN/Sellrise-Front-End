@@ -743,3 +743,5 @@ function ScenarioConfiguration() {
     </div>
   );
 }
+
+export default ScenarioConfiguration;
