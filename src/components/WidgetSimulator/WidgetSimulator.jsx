@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, RotateCcw, AlertTriangle, Send, Bot, User, Loader2 } from 'lucide-react';
+import { X, RotateCcw, AlertTriangle, Send, Bot, User, Loader2, Paperclip } from 'lucide-react';
 import { Button } from '../Button';
-import api from '../../services/api';
+import api, { API_BASE_URL } from '../../services/api';
 import { domainService, scenarioService, workspaceService } from '../../services';
 
 function pickDisplayName(...candidates) {
@@ -92,9 +92,12 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
   const [isInitialising, setIsInitialising] = useState(true);
   const [initError, setInitError] = useState(null);
   const [isSending, setIsSending] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [pendingAttachment, setPendingAttachment] = useState(null);
   const [isFallbackMode, setIsFallbackMode] = useState(false);
   const endRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Scroll to the latest message whenever messages update.
   useEffect(() => {
@@ -229,27 +232,62 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     ]);
   };
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File too large (max 10MB)');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('workspace_id', workspaceId);
+
+      const res = await api.widget.upload(formData);
+      
+      if (res?.url) {
+        setPendingAttachment(res.url);
+      }
+    } catch (err) {
+      alert(`Upload failed: ${err.message}`);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleSend = async (event) => {
     if (event) event.preventDefault();
 
     const trimmed = input.trim();
-    if (!trimmed || isFallbackMode || isSending || !leadId) return;
+    if ((!trimmed && !pendingAttachment) || isFallbackMode || isSending || isUploading || !leadId) return;
 
-    setMessages((prev) => [
-      ...prev,
-      { id: Date.now(), role: 'user', content: trimmed },
-    ]);
+    const curAttachment = pendingAttachment;
+    setPendingAttachment(null);
     setInput('');
     setIsSending(true);
 
+    setMessages((prev) => [
+      ...prev,
+      { id: Date.now(), role: 'user', content: trimmed, attachmentUrl: curAttachment },
+    ]);
+
     try {
-      const res = await api.widget.sendMessage({
+      const payload = {
         workspace_id: workspaceId,
         lead_id: leadId,
         message: trimmed,
         channel: 'web',
         session_id: sessionId,
-      });
+      };
+      if (curAttachment) {
+        payload.attachments = [curAttachment];
+      }
+      const res = await api.widget.sendMessage(payload);
       pushBotMessage(res.bot_reply || '[No response]');
     } catch (err) {
       pushBotMessage(`Error: ${err.message || 'Could not get a response. Please try again.'}`);
@@ -395,6 +433,13 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
                     : 'rounded-tl-sm bg-gray-100 text-gray-800'
                 }`}
               >
+                {message.attachmentUrl && (
+                  <img
+                    src={message.attachmentUrl.startsWith('/') ? `${API_BASE_URL}${message.attachmentUrl}` : message.attachmentUrl}
+                    alt="Attachment"
+                    className="mb-2 max-w-full rounded-lg border border-white/20"
+                  />
+                )}
                 {message.content}
               </div>
             </div>
@@ -431,7 +476,46 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
 
         {/* Input bar */}
         <form onSubmit={handleSend} className="shrink-0 border-t border-gray-200 p-3">
+          {pendingAttachment && (
+            <div className="mb-2 flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 p-2">
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
+                <img
+                  src={pendingAttachment.startsWith('/') ? `${API_BASE_URL}${pendingAttachment}` : pendingAttachment}
+                  alt="Preview"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <p className="truncate text-xs font-medium text-gray-700">Photo attached</p>
+                <p className="text-[10px] text-gray-400">Ready to send</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPendingAttachment(null)}
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-gray-500 transition-colors hover:bg-gray-300 hover:text-gray-700"
+                title="Remove photo"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
           <div className="flex items-end gap-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              className="hidden"
+              accept="image/jpeg, image/png, image/webp"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isInputDisabled}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+              title="Attach photo"
+            >
+              {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
+            </button>
             <textarea
               ref={inputRef}
               value={input}
@@ -447,12 +531,14 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
                   ? 'Starting conversation…'
                   : initError
                   ? 'Conversation unavailable.'
+                  : pendingAttachment
+                  ? 'Photo attached... (Add a note)'
                   : 'Type a message… (Enter to send)'
               }
             />
             <button
               type="submit"
-              disabled={isInputDisabled || !input.trim()}
+              disabled={isInputDisabled || (!input.trim() && !pendingAttachment) || isUploading}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-200"
               title="Send message"
             >

@@ -66,6 +66,7 @@
     '.sr-msg { max-width: 80%; display: flex; flex-direction: column; gap: 2px; }',
     '.sr-msg.bot { align-self: flex-start; }',
     '.sr-msg.user { align-self: flex-end; }',
+    '.sr-msg img { max-width: 100%; border-radius: 8px; margin-bottom: 4px; border: 1px solid #e5e7eb; }',
     '.sr-msg .sr-bubble-msg {',
     '  padding: 9px 13px; border-radius: 14px; font-size: 13.5px; line-height: 1.45;',
     '}',
@@ -112,14 +113,31 @@
     '  outline: none; transition: border-color .15s;',
     '}',
     '#sr-input:focus { border-color: #2563eb; }',
-    '#sr-send {',
+    '#sr-attach, #sr-send {',
     '  width: 36px; height: 36px; border-radius: 50%; background: #2563eb; color: #fff;',
     '  border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;',
     '  flex-shrink: 0; transition: background .15s;',
     '}',
+    '#sr-attach { background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; }',
+    '#sr-attach:hover { background: #e5e7eb; color: #374151; }',
     '#sr-send:hover { background: #1d4ed8; }',
-    '#sr-send:disabled { background: #93c5fd; cursor: not-allowed; }',
+    '#sr-send:disabled, #sr-attach:disabled { opacity: 0.5; cursor: not-allowed; }',
     '.sr-status-msg { font-size: 12px; color: #6b7280; text-align: center; padding: 4px; }',
+    '#sr-preview-row {',
+    '  padding: 8px 12px; background: #f9fafb; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb;',
+    '  display: none; align-items: center; gap: 8px;',
+    '}',
+    '.sr-preview-thumb {',
+    '  width: 40px; height: 40px; border-radius: 6px; object-cover; border: 1px solid #d1d5db; background: #fff;',
+    '}',
+    '.sr-preview-info { flex: 1; min-width: 0; }',
+    '.sr-preview-info div { font-size: 11px; font-weight: 600; color: #374151; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+    '.sr-preview-info span { font-size: 10px; color: #6b7280; }',
+    '#sr-preview-remove {',
+    '  background: #e5e7eb; border: none; border-radius: 50%; width: 22px; height: 22px;',
+    '  display: flex; align-items: center; justify-content: center; cursor: pointer; color: #4b5563;',
+    '}',
+    '#sr-preview-remove:hover { background: #d1d5db; color: #111827; }',
   ].join('\n');
 
   /* ── Helpers ─────────────────────────────────────────────────────────── */
@@ -165,6 +183,8 @@
     var isOpen    = false;
     var leadId    = null;
     var isSending = false;
+    var isUploading = false;
+    var pendingAttachment = null;
 
     /* ── DOM ───────────────────────────────────────────────────────────── */
     var container = el('div', { id: 'sr-widget-root' });
@@ -206,15 +226,25 @@
       '<button id="sr-lead-submit">Start Chat</button>' +
       '<p id="sr-lead-err" class="sr-status-msg" style="color:#ef4444;display:none"></p>';
 
+    /* Preview row */
+    var previewRow = el('div', { id: 'sr-preview-row' });
+    previewRow.innerHTML =
+      '<img class="sr-preview-thumb" id="sr-preview-img" src="" alt="Preview" />' +
+      '<div class="sr-preview-info"><div>Photo attached</div><span>Ready to send</span></div>' +
+      '<button id="sr-preview-remove" title="Remove">&times;</button>';
+
     /* Input row */
     var inputRow = el('div', { id: 'sr-input-row', style: 'display:none' });
     inputRow.innerHTML =
+      '<button id="sr-attach" aria-label="Attach photo" type="button">' + SVG_ATTACH + '</button>' +
+      '<input type="file" id="sr-file-input" accept="image/jpeg, image/png, image/webp" style="display:none" />' +
       '<textarea id="sr-input" rows="1" placeholder="Type a message…"></textarea>' +
       '<button id="sr-send" aria-label="Send">' + SVG_SEND + '</button>';
 
     panel.appendChild(header);
     panel.appendChild(messagesEl);
     panel.appendChild(leadFormEl);
+    panel.appendChild(previewRow);
     panel.appendChild(inputRow);
 
     container.appendChild(bubble);
@@ -222,10 +252,17 @@
     document.body.appendChild(container);
 
     /* ── Interaction helpers ───────────────────────────────────────────── */
-    function addMessage(role, text) {
+    function addMessage(role, text, attachmentUrl) {
       var msg = el('div', { class: 'sr-msg ' + role });
-      msg.innerHTML =
-        '<div class="sr-bubble-msg">' + escHtml(text) + '</div>' +
+      var parts = [];
+      if (attachmentUrl) {
+        var host = apiBase === '/' ? '' : apiBase;
+        parts.push('<img src="' + host + attachmentUrl + '" alt="Attachment" />');
+      }
+      if (text) {
+        parts.push('<div class="sr-bubble-msg">' + escHtml(text) + '</div>');
+      }
+      msg.innerHTML = parts.join('') +
         '<span class="sr-ts">' + ts() + '</span>';
       messagesEl.appendChild(msg);
       messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -342,21 +379,31 @@
 
     /* ── Message sending ───────────────────────────────────────────────── */
     function sendMessage(text) {
-      if (!text.trim() || isSending || !leadId) return;
+      if ((!text.trim() && !pendingAttachment) || isSending || isUploading || !leadId) return;
       isSending = true;
-      addMessage('user', text);
+      var curAttachment = pendingAttachment;
+      pendingAttachment = null;
+      document.getElementById('sr-preview-row').style.display = 'none';
+      document.getElementById('sr-input').placeholder = "Type a message…";
+
+      addMessage('user', text, curAttachment);
       document.getElementById('sr-input').value = '';
       autoResize(document.getElementById('sr-input'));
       document.getElementById('sr-send').disabled = true;
       showTyping();
 
-      postJSON(apiBase + '/v1/widget/message', {
+      var payload = {
         workspace_id: workspace,
         lead_id: leadId,
         message: text,
         channel: 'web',
         session_id: sessionId,
-      })
+      };
+      if (curAttachment) {
+        payload.attachments = [curAttachment];
+      }
+
+      postJSON(apiBase + '/v1/widget/message', payload)
         .then(function (res) {
           hideTyping();
           addMessage('bot', res.bot_reply || '(no reply)');
@@ -415,6 +462,56 @@
     document.getElementById('sr-send').addEventListener('click', function () {
       sendMessage(inputEl.value);
     });
+
+    document.getElementById('sr-preview-remove').addEventListener('click', function () {
+      pendingAttachment = null;
+      document.getElementById('sr-preview-row').style.display = 'none';
+      document.getElementById('sr-input').placeholder = "Type a message…";
+    });
+
+    /* ── Attachment handling ───────────────────────────────────────────── */
+    var fileInputEl = document.getElementById('sr-file-input');
+    var attachBtn = document.getElementById('sr-attach');
+    attachBtn.addEventListener('click', function () { fileInputEl.click(); });
+    fileInputEl.addEventListener('change', function (e) {
+      if (!e.target.files.length) return;
+      var file = e.target.files[0];
+      if (file.size > 10 * 1024 * 1024) { alert('File too large (max 10MB)'); return; }
+      
+      var origHtml = attachBtn.innerHTML;
+      attachBtn.innerHTML = '...';
+      attachBtn.disabled = true;
+      isUploading = true;
+
+      var fd = new FormData();
+      fd.append('file', file);
+      fd.append('workspace_id', workspace);
+
+      var host = apiBase === '/' ? '' : apiBase;
+      fetch(host + '/v1/widget/upload', {
+        method: 'POST',
+        body: fd
+      }).then(function(r) { 
+        if (!r.ok) throw new Error('Upload failed');
+        return r.json(); 
+      })
+      .then(function(data) {
+          if(data.url) {
+            pendingAttachment = data.url;
+            var host = apiBase === '/' ? '' : apiBase;
+            document.getElementById('sr-preview-img').src = host + data.url;
+            document.getElementById('sr-preview-row').style.display = 'flex';
+            document.getElementById('sr-input').placeholder = "Add a note...";
+          }
+      }).catch(function(e) { 
+         alert('Upload failed: ' + e.message);
+      }).finally(function() {
+         attachBtn.innerHTML = origHtml;
+         attachBtn.disabled = false;
+         isUploading = false;
+         fileInputEl.value = '';
+      });
+    });
   }
 
   /* ── Utility: auto-grow textarea ─────────────────────────────────────── */
@@ -444,6 +541,7 @@
   var SVG_CLOSE = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
   var SVG_BOT = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M12 2v4M8 11V7a4 4 0 0 1 8 0v4"/><circle cx="9" cy="16" r="1" fill="white"/><circle cx="15" cy="16" r="1" fill="white"/></svg>';
   var SVG_SEND = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
+  var SVG_ATTACH = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
 
   /* ── Public API ──────────────────────────────────────────────────────── */
   w.sellrise = function (cmd, config) {

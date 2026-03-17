@@ -58,9 +58,12 @@ class ApiClient {
     const token = this.getAccessToken();
 
     const headers = {
-      'Content-Type': 'application/json',
       ...fetchOptions.headers,
     };
+
+    if (!(fetchOptions.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (token && !skipAuth) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -162,7 +165,7 @@ class ApiClient {
     return this.request(endpoint, {
       ...options,
       method: 'POST',
-      body: body ? JSON.stringify(body) : undefined,
+      body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
     });
   }
 
@@ -301,6 +304,12 @@ class ApiClient {
      * @param {Object} payload - { name, email, phone, reason, correlation_id, page_url }
      */
     fallbackLead: (payload) => this.post('/v1/widget/fallback-lead', payload),
+
+    /**
+     * Upload a file from the widget.
+     * @param {FormData} formData
+     */
+    upload: (formData) => this.post('/v1/widget/upload', formData),
   };
 
   /**
