@@ -1,15 +1,63 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AlertCircle, CheckCircle, Sparkles, Loader } from 'lucide-react';
 import api from '../../../services/api';
+
+const validateScenarioConfig = (parsed) => {
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return 'Configuration must be a JSON object';
+  }
+
+  if (parsed.entry_step_id || parsed.steps) {
+    if (!parsed.entry_step_id) {
+      return 'Missing entry_step_id';
+    }
+
+    if (!parsed.steps || typeof parsed.steps !== 'object' || Array.isArray(parsed.steps)) {
+      return 'Missing or invalid steps object';
+    }
+
+    if (!parsed.steps[parsed.entry_step_id]) {
+      return `Entry step "${parsed.entry_step_id}" not found in steps`;
+    }
+
+    for (const [stepId, step] of Object.entries(parsed.steps)) {
+      if (!step?.next) {
+        continue;
+      }
+
+      if (typeof step.next === 'string') {
+        if (!parsed.steps[step.next]) {
+          return `Step "${stepId}" references non-existent step "${step.next}"`;
+        }
+      } else if (typeof step.next === 'object') {
+        for (const nextStep of Object.values(step.next)) {
+          if (!parsed.steps[nextStep]) {
+            return `Step "${stepId}" references non-existent step "${nextStep}"`;
+          }
+        }
+      }
+    }
+  }
+
+  return null;
+};
 
 function JsonEditor({ value, onChange }) {
   const [jsonText, setJsonText] = useState('');
   const [error, setError] = useState(null);
   const [isValid, setIsValid] = useState(true);
   const [enhancing, setEnhancing] = useState(false);
+  // Track whether the change originated from user typing (internal) so we
+  // can skip the useEffect sync and avoid overwriting the textarea content.
+  const isInternalEdit = useRef(false);
 
-  // Initialize with formatted JSON
+  // Sync from parent value only when the change came from outside (e.g.
+  // loading a scenario, AI enhancement from parent, system prompt change).
   useEffect(() => {
+    if (isInternalEdit.current) {
+      isInternalEdit.current = false;
+      return;
+    }
     try {
       setJsonText(JSON.stringify(value, null, 2));
       setError(null);
@@ -24,44 +72,24 @@ function JsonEditor({ value, onChange }) {
     const newText = e.target.value;
     setJsonText(newText);
 
-    // Try to parse and validate
     try {
       const parsed = JSON.parse(newText);
-      
-      // Validate required fields
-      if (!parsed.entry_step_id) {
-        throw new Error('Missing entry_step_id');
-      }
-      if (!parsed.steps || typeof parsed.steps !== 'object') {
-        throw new Error('Missing or invalid steps object');
-      }
-      
-      // Validate entry step exists
-      if (!parsed.steps[parsed.entry_step_id]) {
-        throw new Error(`Entry step "${parsed.entry_step_id}" not found in steps`);
-      }
 
-      // Validate step references
-      for (const [stepId, step] of Object.entries(parsed.steps)) {
-        if (step.next) {
-          if (typeof step.next === 'string') {
-            if (!parsed.steps[step.next]) {
-              throw new Error(`Step "${stepId}" references non-existent step "${step.next}"`);
-            }
-          } else if (typeof step.next === 'object') {
-            for (const nextStep of Object.values(step.next)) {
-              if (!parsed.steps[nextStep]) {
-                throw new Error(`Step "${stepId}" references non-existent step "${nextStep}"`);
-              }
-            }
-          }
-        }
-      }
-
-      setError(null);
-      setIsValid(true);
+      // ALWAYS propagate valid JSON to parent — never block onChange.
+      // Structural validation is shown as a warning but does NOT prevent saving.
+      isInternalEdit.current = true;
       onChange(parsed);
+
+      const validationWarning = validateScenarioConfig(parsed);
+      if (validationWarning) {
+        setError(validationWarning);
+        setIsValid(true); // JSON itself is valid, warning is structural only
+      } else {
+        setError(null);
+        setIsValid(true);
+      }
     } catch (err) {
+      // JSON.parse failed — genuine syntax error, don't propagate
       setError(err.message);
       setIsValid(false);
     }
@@ -93,6 +121,7 @@ function JsonEditor({ value, onChange }) {
       if (response.enhanced_config) {
         const formatted = JSON.stringify(response.enhanced_config, null, 2);
         setJsonText(formatted);
+        isInternalEdit.current = true;
         onChange(response.enhanced_config);
         setIsValid(true);
       } else if (response.suggestions && response.suggestions.length > 0) {
@@ -159,13 +188,25 @@ function JsonEditor({ value, onChange }) {
         />
       </div>
 
-      {error && (
+      {error && !isValid && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-red-800">Validation Error</p>
+              <p className="text-sm font-medium text-red-800">JSON Syntax Error</p>
               <p className="text-sm text-red-700 mt-1">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {error && isValid && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-yellow-800">Structural Warning (config will still be saved)</p>
+              <p className="text-sm text-yellow-700 mt-1">{error}</p>
             </div>
           </div>
         </div>
@@ -173,9 +214,9 @@ function JsonEditor({ value, onChange }) {
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
         <p className="text-xs text-blue-800">
-          <strong>Required fields:</strong> entry_step_id, steps object. All step references must exist.
+          <strong>Contract:</strong> Backend accepts any JSON object in <code>config</code>.
           <br />
-          <strong>Tip:</strong> Use "Enhance with AI" to automatically improve conversation flow, add missing steps, and optimize for lead conversion.
+          <strong>Optional validation:</strong> If you use legacy <code>entry_step_id</code>/<code>steps</code> flow, all step references must exist.
         </p>
       </div>
     </div>

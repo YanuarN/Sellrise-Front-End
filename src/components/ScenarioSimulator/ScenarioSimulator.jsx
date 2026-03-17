@@ -1,6 +1,75 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { X, Send, RotateCcw, Bot, User, Loader2 } from 'lucide-react';
 import { scenarioService } from '../../services';
+
+// ── Greeting helpers (mirrors WidgetSimulator logic) ──────────────────────────
+
+function normalizeScenarioConfig(config) {
+  if (!config) return null;
+  if (typeof config === 'string') {
+    try {
+      const parsed = JSON.parse(config);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  return typeof config === 'object' ? config : null;
+}
+
+function applyScenarioVariables(text, brandName) {
+  if (typeof text !== 'string') return '';
+  const resolved = brandName || 'Plasthic';
+  return text
+    .replace(/\{name\}/gi, 'Simulator User')
+    .replace(/\{first_name\}/gi, 'Simulator User')
+    .replace(/\{agent_name\}/gi, resolved)
+    .replace(/\{company\}/gi, resolved);
+}
+
+function sortByPriorityDesc(items) {
+  return (Array.isArray(items) ? items : []).slice().sort((a, b) => (b?.priority || 0) - (a?.priority || 0));
+}
+
+function getInitialMessageFromScenario(scenarioConfig, brandName) {
+  if (!scenarioConfig || typeof scenarioConfig !== 'object') return null;
+
+  // Legacy step-based scenarios
+  if (scenarioConfig.entry_step_id && scenarioConfig.steps) {
+    const entryStep = scenarioConfig.steps?.[scenarioConfig.entry_step_id];
+    const stepText =
+      entryStep?.content || entryStep?.message || entryStep?.text ||
+      entryStep?.question || entryStep?.prompt;
+    const resolved = applyScenarioVariables(stepText, brandName);
+    return resolved.trim() ? resolved : null;
+  }
+
+  // Stage-based scenarios
+  if (scenarioConfig.stages) {
+    const stages = Array.isArray(scenarioConfig.stages)
+      ? sortByPriorityDesc(scenarioConfig.stages)
+      : sortByPriorityDesc(Object.values(scenarioConfig.stages || {}));
+
+    const firstStage =
+      stages.find((s) => s?.entry_condition?.type === 'first_message') || stages[0];
+    if (!firstStage) return null;
+
+    const tasks = Array.isArray(firstStage.tasks)
+      ? sortByPriorityDesc(firstStage.tasks)
+      : sortByPriorityDesc(Object.values(firstStage.tasks || {}));
+
+    for (const task of tasks) {
+      const phrase = task?.approved_phrases?.[0] || task?.fallback_phrases?.[0];
+      const resolved = applyScenarioVariables(phrase, brandName);
+      if (resolved.trim()) return resolved;
+    }
+  }
+
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * ScenarioSimulator
@@ -14,6 +83,14 @@ import { scenarioService } from '../../services';
  *  onClose   {Function} Called when the user closes the modal
  */
 function ScenarioSimulator({ scenario, onClose }) {
+  const [resolvedScenarioConfig, setResolvedScenarioConfig] = useState(() => normalizeScenarioConfig(scenario?.config));
+  const [isLoadingScenario, setIsLoadingScenario] = useState(() => !normalizeScenarioConfig(scenario?.config) && !!scenario?.id);
+
+  const initialGreeting = useMemo(
+    () => getInitialMessageFromScenario(resolvedScenarioConfig, scenario?.name),
+    [resolvedScenarioConfig, scenario?.name],
+  );
+
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -37,6 +114,43 @@ function ScenarioSimulator({ scenario, onClose }) {
     inputRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resolveScenarioConfig() {
+      const inlineConfig = normalizeScenarioConfig(scenario?.config);
+      if (inlineConfig) {
+        setResolvedScenarioConfig(inlineConfig);
+        setIsLoadingScenario(false);
+        return;
+      }
+
+      if (!scenario?.id) {
+        setResolvedScenarioConfig(null);
+        setIsLoadingScenario(false);
+        return;
+      }
+
+      setIsLoadingScenario(true);
+      try {
+        const fullScenario = await scenarioService.getScenario(scenario.id);
+        if (cancelled) return;
+        setResolvedScenarioConfig(normalizeScenarioConfig(fullScenario?.config));
+      } catch {
+        if (cancelled) return;
+        setResolvedScenarioConfig(null);
+      } finally {
+        if (!cancelled) setIsLoadingScenario(false);
+      }
+    }
+
+    resolveScenarioConfig();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [scenario?.id, scenario?.config]);
+
   // Build the history array expected by the simulate API.
   const buildHistory = () =>
     messages.map((m) => ({
@@ -58,6 +172,7 @@ function ScenarioSimulator({ scenario, onClose }) {
     const text = input.trim();
     if (!text || sending) return;
 
+    const isFirstTurn = messages.length === 0;
     const userMessage = { role: 'user', content: text };
     // Capture history BEFORE appending the new user message, because
     // `message` is passed separately to the simulate endpoint and should
@@ -78,7 +193,11 @@ function ScenarioSimulator({ scenario, onClose }) {
       );
 
       const botContent =
-        res?.reply ?? res?.message ?? res?.content ?? '[No response]';
+        (isFirstTurn && initialGreeting) ||
+        res?.reply ||
+        res?.message ||
+        res?.content ||
+        '[No response]';
 
       setMessages((prev) => [
         ...prev,
@@ -156,12 +275,22 @@ function ScenarioSimulator({ scenario, onClose }) {
 
         {/* ── Messages area ── */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-          {messages.length === 0 && (
+          {isLoadingScenario && messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 gap-2">
+              <Loader2 className="w-10 h-10 text-slate-300 animate-spin" />
+              <p className="text-sm font-medium">Loading scenario…</p>
+              <p className="text-xs">
+                Fetching the latest scenario greeting.
+              </p>
+            </div>
+          )}
+
+          {!isLoadingScenario && messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 gap-2">
               <Bot className="w-10 h-10 text-slate-300" />
-              <p className="text-sm font-medium">Start the conversation</p>
+              <p className="text-sm font-medium">Send the first message</p>
               <p className="text-xs">
-                Type a message below to test this scenario.
+                The simulator will show the configured greeting after your first input.
               </p>
             </div>
           )}

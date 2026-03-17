@@ -1,8 +1,20 @@
 import api from './api';
 
 const authService = {
+  async register(payload) {
+    const data = await api.post('/v1/auth/register', payload, {
+      skipAuth: true,
+      skipAuthRefresh: true,
+    });
+    api.setAccessToken(data.access_token);
+    return data;
+  },
+
   async login(email, password) {
-    const data = await api.post('/v1/auth/login', { email, password });
+    const data = await api.post('/v1/auth/login', { email, password }, {
+      skipAuth: true,
+      skipAuthRefresh: true,
+    });
     api.setAccessToken(data.access_token);
     return data;
   },
@@ -16,9 +28,16 @@ const authService = {
   },
 
   async refresh() {
-    const data = await api.post('/v1/auth/refresh');
-    api.setAccessToken(data.access_token);
-    return data;
+    const refreshed = await api.refreshToken();
+
+    if (!refreshed) {
+      throw new Error('Session expired');
+    }
+
+    return {
+      access_token: api.getAccessToken(),
+      token_type: 'bearer',
+    };
   },
 
   async getMe() {

@@ -430,6 +430,14 @@ export default function Leads() {
                       <p className="text-sm font-medium text-slate-700 mt-1 capitalize">{selectedLead.stage || 'new'}</p>
                     </div>
                     <div className="bg-slate-50 rounded-xl p-3">
+                      <span className="text-xs font-semibold text-slate-400 uppercase">Country</span>
+                      <p className="text-sm font-medium text-slate-700 mt-1">{selectedLead.country || '—'}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-3">
+                      <span className="text-xs font-semibold text-slate-400 uppercase">Age</span>
+                      <p className="text-sm font-medium text-slate-700 mt-1">{selectedLead.age || '—'}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-3">
                       <span className="text-xs font-semibold text-slate-400 uppercase">Procedure</span>
                       <p className="text-sm font-medium text-slate-700 mt-1">{selectedLead.procedure || '—'}</p>
                     </div>
@@ -440,6 +448,14 @@ export default function Leads() {
                     <div className="bg-slate-50 rounded-xl p-3">
                       <span className="text-xs font-semibold text-slate-400 uppercase">Timeframe</span>
                       <p className="text-sm font-medium text-slate-700 mt-1">{selectedLead.timeframe || '—'}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-3">
+                      <span className="text-xs font-semibold text-slate-400 uppercase">Consultation Time</span>
+                      <p className="text-sm font-medium text-slate-700 mt-1">{selectedLead.appointment_time || '—'}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-3">
+                      <span className="text-xs font-semibold text-slate-400 uppercase">Goal</span>
+                      <p className="text-sm font-medium text-slate-700 mt-1">{selectedLead.goal || '—'}</p>
                     </div>
                   </div>
 

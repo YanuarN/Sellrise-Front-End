@@ -1,367 +1,69 @@
+/**
+ * ScenarioConfiguration – slim page orchestrator.
+ *
+ * All heavy logic lives in:
+ *   hooks/useScenarioConfig  – state, CRUD, LLM helpers
+ *   src/components/*         – one folder per component + barrel exports
+ *   constants                – tabs, defaults, templates
+ */
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { 
-  Save, Play, Upload, Sparkles, FileJson, FileText, 
-  Settings, AlertCircle, CheckCircle, Loader, Eye 
+import {
+  ArrowLeft, Save, Send, Loader2, Sparkles, Play, Trash2,
+  CheckCircle2, AlertCircle, Wand2,
 } from 'lucide-react';
-import { Button, Card } from '../../components';
-import api from '../../services/api';
-import JsonEditor from './components/JsonEditor';
-import SystemPromptEditor from './components/SystemPromptEditor';
-import FileAttachment from './components/FileAttachment';
-import ScenarioPreview from './components/ScenarioPreview';
+import {
+  Button,
+  ScenarioSimulator,
+  ScenarioGeneralTab,
+  ScenarioRulesTab,
+  ScenarioSlotsTab,
+  ScenarioActionsTab,
+  ScenarioStagesTab,
+  ScenarioPromptsTab,
+  ScenarioLLMConfigTab,
+  ScenarioFollowupsTab,
+  ScenarioJsonEditorTab,
+  ScenarioGenerateModal,
+} from '../../components';
+import useScenarioConfig from './hooks/useScenarioConfig';
+import { TABS } from './constants';
 
-const defaultScenarioConfig = {
-  version: "1.0",
-  bot_id: "sellrise_conversation_engine",
-  language_default: "en",
-  timezone_default: "Europe/Rome",
-  rules: {
-    one_question_rule: true,
-    max_sentences: 2,
-    max_chars: {
-      default: 420,
-      outbound: 520,
-      followup: 520
-    },
-    facts_only: true,
-    forbid: ["I think", "probably", "maybe"],
-    emoji: {
-      allowed: false
-    }
-  },
-  slots_schema: {
-    industry: { type: "string", required: false },
-    role: { type: "string", required: false },
-    interest_trigger: { type: "string", required: false },
-    acquisition_channels: { type: "string", required: false },
-    lead_handler: { type: "string", required: false },
-    lead_tracking: { type: "string", required: false },
-    pain_points: { type: "string", required: false },
-    lost_leads_cost: { type: "string", required: false },
-    meeting_datetime_candidate: { type: "datetime", required: false },
-    timezone: { type: "string", required: false },
-    email: { type: "string", required: false }
-  },
-  actions_catalog: {
-    "#product_request": {
-      type: "send_products",
-      payload_schema: {
-        segment: { type: "string", required: false }
-      }
-    },
-    "#New_meeting_time": {
-      type: "book_meeting",
-      payload_schema: {
-        datetime: { type: "datetime", required: true },
-        timezone: { type: "string", required: false }
-      }
-    },
-    "#stop_script": {
-      type: "stop_automation",
-      payload_schema: {}
-    },
-    "#handover": {
-      type: "handover_to_human",
-      payload_schema: {
-        reason: { type: "string", required: false }
-      }
-    }
-  },
-  stages: [
-    {
-      stage_id: "stage_0_outbound",
-      priority: 100,
-      entry_condition: {
-        type: "first_message"
-      },
-      required_slots: [],
-      tasks: [
-        {
-          task_id: "task_0_1",
-          priority: 100,
-          criteria: {
-            type: "always"
-          },
-          instruction: "Send an outbound intro message and request permission to ask 2 short questions.",
-          approved_phrases: [
-            "Hi! I'm {agent_name} from {company}. We help businesses qualify inbound leads with AI so they reply faster and lose fewer opportunities. Can I ask 2 quick questions?"
-          ],
-          tags: [],
-          slot_questions: []
-        }
-      ]
-    },
-    {
-      stage_id: "stage_1_start",
-      priority: 90,
-      entry_condition: {
-        type: "any",
-        when: [
-          "slots.industry is null",
-          "slots.role is null",
-          "slots.interest_trigger is null"
-        ]
-      },
-      required_slots: [],
-      tasks: [
-        {
-          task_id: "task_1_1_user_initiated",
-          priority: 100,
-          criteria: {
-            type: "all",
-            when: ["context.user_initiated == true"]
-          },
-          instruction: "Greet, introduce, give value, and ask one question about what they want to improve.",
-          approved_phrases: [
-            "Hi! I'm {agent_name} from {company}. We use AI to qualify inbound leads and speed up response times. What are you trying to improve most: speed, conversion, or workload?"
-          ],
-          tags: []
-        },
-        {
-          task_id: "task_1_2_agent_initiated",
-          priority: 90,
-          criteria: {
-            type: "all",
-            when: ["context.user_initiated == false"]
-          },
-          instruction: "Acknowledge response and ask one context question.",
-          approved_phrases: [
-            "Thanks—got it. Which channel matters most right now: website forms, WhatsApp/Telegram, Instagram, or phone calls?"
-          ],
-          tags: []
-        }
-      ]
-    },
-    {
-      stage_id: "stage_2_quick_qualification",
-      priority: 80,
-      entry_condition: {
-        type: "any",
-        when: ["context.channel_preference == 'chat'"]
-      },
-      required_slots: ["industry", "role", "interest_trigger"],
-      tasks: [
-        {
-          task_id: "task_2_1_collect_basics",
-          priority: 100,
-          criteria: {
-            type: "any",
-            when: [
-              "slots.industry is null",
-              "slots.role is null",
-              "slots.interest_trigger is null"
-            ]
-          },
-          instruction: "Collect industry, role, and interest trigger in one message.",
-          approved_phrases: [
-            "To make sure this fits: what business are you in, what's your role, and what triggered your interest (speed, conversion, or workload)?"
-          ],
-          tags: ["#need_more_info"]
-        },
-        {
-          task_id: "task_2_3_offer_channel_choice",
-          priority: 80,
-          criteria: {
-            type: "all",
-            when: [
-              "slots.industry is not null",
-              "slots.role is not null",
-              "slots.interest_trigger is not null"
-            ]
-          },
-          instruction: "Offer to continue in chat or book a 10–15 min call.",
-          approved_phrases: [
-            "Great—context is clear. Do you prefer continuing here, or a quick 10–15 minute call to align requirements and show the approach?"
-          ],
-          tags: ["#channel_choice"]
-        }
-      ]
-    },
-    {
-      stage_id: "stage_3_full_qualification",
-      priority: 70,
-      entry_condition: {
-        type: "any",
-        when: ["context.full_qualification_allowed == true"]
-      },
-      required_slots: [],
-      tasks: [
-        {
-          task_id: "task_3_1_acquisition",
-          priority: 100,
-          criteria: {
-            type: "all",
-            when: ["slots.acquisition_channels is null"]
-          },
-          instruction: "Ask how they acquire customers and whether inbound is stable.",
-          approved_phrases: [
-            "How do you currently acquire customers (ads, website, social, partners)? Do you have stable inbound requests?"
-          ],
-          tags: ["#qualify"]
-        },
-        {
-          task_id: "task_3_5_summary_offer_call",
-          priority: 60,
-          criteria: {
-            type: "all",
-            when: ["context.full_qualification_complete == true"]
-          },
-          instruction: "Summarize and propose a call/demo.",
-          approved_phrases: [
-            "Thanks—got it. Based on what you shared, the main bottleneck is {summary_pain}. Want to do a 15-minute demo to show the exact flow and integrations?"
-          ],
-          tags: ["#offer_demo"]
-        }
-      ]
-    },
-    {
-      stage_id: "stage_4_meeting_booking",
-      priority: 60,
-      entry_condition: {
-        type: "any",
-        when: [
-          "context.user_requested_meeting == true",
-          "context.lead_qualified == true"
-        ]
-      },
-      required_slots: [],
-      tasks: [
-        {
-          task_id: "task_4_1_offer_meeting",
-          priority: 100,
-          criteria: {
-            type: "all",
-            when: ["context.meeting_offered == false"]
-          },
-          instruction: "Offer meeting and set agenda.",
-          approved_phrases: [
-            "Perfect. In 15 minutes we'll map your process, show the AI qualification flow for your channels, and agree next steps. What day/time works for you?"
-          ],
-          tags: ["#book_demo"]
-        },
-        {
-          task_id: "task_4_4_create_and_confirm",
-          priority: 70,
-          criteria: {
-            type: "all",
-            when: [
-              "slots.meeting_datetime_candidate is not null",
-              "slots.email is not null",
-              "context.meeting_confirmed == false"
-            ]
-          },
-          instruction: "Confirm booking and trigger backend meeting creation.",
-          approved_phrases: [
-            "Done—I booked {datetime}. You'll receive the invite at {email}. If anything changes, just message me and we'll reschedule."
-          ],
-          tags: ["#New_meeting_time"]
-        }
-      ]
-    },
-    {
-      stage_id: "stage_5_closure",
-      priority: 10,
-      entry_condition: {
-        type: "any",
-        when: [
-          "context.stop_script == true",
-          "context.conversation_complete == true"
-        ]
-      },
-      required_slots: [],
-      tasks: [
-        {
-          task_id: "task_5_1_close_after_booking",
-          priority: 100,
-          criteria: {
-            type: "all",
-            when: ["context.meeting_confirmed == true"]
-          },
-          instruction: "Close politely and mention reminder.",
-          approved_phrases: [
-            "Thanks—booked for {datetime}. I'll remind you shortly before the call. If questions come up, just message me."
-          ],
-          tags: ["#end"]
-        },
-        {
-          task_id: "task_5_2_close_stop",
-          priority: 90,
-          criteria: {
-            type: "all",
-            when: ["context.stop_script == true"]
-          },
-          instruction: "Send value and stop automation.",
-          approved_phrases: [
-            "Understood. If you return to this later, just message me and I'll help with your case. Have a good day."
-          ],
-          tags: ["#stop_script"]
-        }
-      ]
-    }
-  ],
-  followups: [
-    {
-      followup_id: "followups_stages_1_3",
-      applies_to_stages: ["stage_1_start", "stage_2_quick_qualification", "stage_3_full_qualification"],
-      steps: [
-        {
-          step_id: "fu_1",
-          criteria: { type: "silence", min_minutes: 60 },
-          approved_phrases: ["Just checking—are you still there?"],
-          tags: []
-        },
-        {
-          step_id: "fu_2",
-          criteria: { type: "silence", min_minutes: 240 },
-          approved_phrases: ["Did you get a chance to look at my last question?"],
-          tags: []
-        },
-        {
-          step_id: "fu_3",
-          criteria: { type: "silence", min_minutes: 1440 },
-          approved_phrases: [
-            "If you want, we can do a quick 15-minute call to answer everything for your exact situation—no commitment. When would be convenient?"
-          ],
-          tags: ["#offer_demo"]
-        },
-        {
-          step_id: "fu_4",
-          criteria: { type: "silence", min_minutes: 4320 },
-          approved_phrases: [
-            "No worries—here are useful resources: {resources_links}. If you have questions later, just message me."
-          ],
-          tags: ["#stop_script"]
-        }
-      ]
-    },
-    {
-      followup_id: "followups_stages_4_5",
-      applies_to_stages: ["stage_4_meeting_booking", "stage_5_closure"],
-      steps: [
-        {
-          step_id: "fu_1",
-          criteria: { type: "silence", min_minutes: 1440 },
-          approved_phrases: [
-            "Sharing useful links in case helpful: {resources_links}. If you want to continue later, just message me."
-          ],
-          tags: ["#stop_script"]
-        }
-      ]
-    }
-  ],
-  system_prompts: {
-    main: "You are an AI conversation agent for lead qualification. Follow all rules strictly: max 1 question per message, max 2 sentences, max 420 characters. Never use phrases like 'I think', 'probably', or 'maybe'. State facts only from the knowledge base—never invent information. Be professional, direct, and helpful.",
-    qualification: "Your goal is to efficiently qualify leads by collecting required information (industry, role, interest trigger) through one question at a time. Keep responses concise (max 2 sentences, 420 chars). Guide the conversation toward either a quick chat qualification or booking a 15-minute demo call.",
-    outbound: "When initiating outbound contact, introduce yourself and the company value proposition in one sentence, then request permission to ask 2 short questions. Keep total message under 520 characters. Be respectful of their time.",
-    meeting_booking: "When booking meetings, be specific about the agenda (15-minute call to map process, show AI flow, agree next steps). Collect datetime and email efficiently. Confirm booking clearly with all details. Handle objections by offering flexible alternatives without repeating the same close.",
-    followup: "For follow-up messages after silence, be brief and non-pushy. First check in (60 min silence), then remind (4 hours), offer demo (24 hours), or send resources and soft close (3 days). Max 520 characters per followup message."
-  },
-  llm_config: {
-    model: "anthropic/claude-3.5-sonnet",
-    temperature: 0.7,
-    max_tokens: 2000
-  }
+// ─── Tab renderer map ──────────────────────────────────────────────────────
+const TAB_MAP = {
+  general: (h) => (
+    <ScenarioGeneralTab
+      name={h.name}
+      setName={(v) => { h.setName(v); }}
+      description={h.description}
+      setDescription={(v) => { h.setDescription(v); }}
+      version={h.version}
+      setVersion={(v) => { h.setVersion(v); }}
+    />
+  ),
+  rules:      (h) => <ScenarioRulesTab config={h.config} updateConfig={h.updateConfig} />,
+  slots:      (h) => <ScenarioSlotsTab config={h.config} updateConfig={h.updateConfig} />,
+  actions:    (h) => <ScenarioActionsTab config={h.config} updateConfig={h.updateConfig} />,
+  stages:     (h) => <ScenarioStagesTab config={h.config} updateConfig={h.updateConfig} />,
+  prompts:    (h) => (
+    <ScenarioPromptsTab
+      config={h.config}
+      updateConfig={h.updateConfig}
+      enhancePrompt={h.enhancePrompt}
+      enhancingField={h.enhancingField}
+    />
+  ),
+  llm_config: (h) => <ScenarioLLMConfigTab config={h.config} updateConfig={h.updateConfig} />,
+  followups:  (h) => <ScenarioFollowupsTab config={h.config} updateConfig={h.updateConfig} />,
+  json:       (h) => (
+    <ScenarioJsonEditorTab
+      jsonText={h.jsonText}
+      jsonError={h.jsonError}
+      onChange={h.handleJsonChange}
+      onFormat={h.formatJson}
+      onEnhance={h.enhanceConfigWithInstructions}
+      enhancing={h.enhancing}
+    />
+  ),
 };
 
 function ScenarioConfiguration() {
@@ -396,7 +98,7 @@ function ScenarioConfiguration() {
     loadScenarios();
   }, []);
 
-  // Auto-load a specific scenario when ?id= param is present or changes.
+  // Sync JSON text when switching to "json" tab
   useEffect(() => {
     const idParam = searchParams.get('id');
     if (idParam) {
@@ -677,15 +379,20 @@ function ScenarioConfiguration() {
             <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600">
               ×
             </button>
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
-            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-green-800">Success</p>
-              <p className="text-sm text-green-700">{success}</p>
+            <div>
+              <h1 className="text-xl font-bold text-slate-800">
+                {h.scenarioId ? 'Edit Scenario' : 'New Scenario'}
+              </h1>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {h.isPublished ? (
+                  <span className="inline-flex items-center gap-1 text-emerald-600">
+                    <CheckCircle2 className="w-3 h-3" /> Published (v{h.version})
+                  </span>
+                ) : (
+                  <span className="text-slate-400">Draft (v{h.version})</span>
+                )}
+                {h.dirty && <span className="ml-2 text-amber-500">• Unsaved changes</span>}
+              </p>
             </div>
             <button onClick={() => setSuccess(null)} className="text-green-400 hover:text-green-600">
               ×
@@ -729,38 +436,41 @@ function ScenarioConfiguration() {
 
           <div className="flex items-center gap-2">
             <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowPreview(!showPreview)}
+              variant="outline"
+              className="gap-1.5 text-xs border-violet-200 text-violet-600 hover:bg-violet-50"
+              onClick={() => setShowGenerateModal(true)}
             >
-              <Eye className="w-4 h-4 mr-2" />
-              {showPreview ? 'Hide' : 'Show'} Preview
+              <Wand2 className="w-3.5 h-3.5" />
+              Generate with AI
             </Button>
+
             <Button
               variant="outline"
-              size="sm"
-              onClick={handleEnhanceWithLLM}
-              disabled={enhancing}
-              title="AI will analyze and improve the entire scenario configuration"
+              className="gap-1.5 text-xs border-blue-200 text-blue-600 hover:bg-blue-50"
+              onClick={h.enhanceConfig}
+              disabled={h.enhancing}
             >
-              {enhancing ? (
-                <Loader className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4 mr-2" />
-              )}
-              Enhance All with AI
+              {h.enhancing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              Enhance Config
             </Button>
+
+            {h.scenarioId && (
+              <Button
+                variant="outline"
+                className="gap-1.5 text-xs"
+                onClick={() => setShowSimulator(true)}
+              >
+                <Play className="w-3.5 h-3.5" />
+                Simulate
+              </Button>
+            )}
+
             <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleSave}
-              disabled={saving}
+              className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5 text-xs shadow-lg shadow-blue-500/20"
+              onClick={h.handleSave}
+              disabled={h.saving}
             >
-              {saving ? (
-                <Loader className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
+              {h.saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               Save Draft
             </Button>
             <Button
@@ -930,88 +640,106 @@ function ScenarioConfiguration() {
               </div>
             </Card>
 
-            {/* System Prompts */}
-            <Card>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                System Prompts
-              </h2>
-              <SystemPromptEditor
-                prompts={config.system_prompts}
-                onChange={handleSystemPromptsChange}
-              />
-            </Card>
+            {h.scenarioId && h.isAdmin && (
+              <Button
+                variant="outline"
+                className="gap-1.5 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() => {
+                  if (window.confirm('Delete this scenario? This action cannot be undone.')) {
+                    h.handleDelete();
+                  }
+                }}
+                disabled={h.deleting}
+                title={h.isPublished ? 'Published scenarios cannot be deleted.' : 'Delete scenario'}
+              >
+                {h.deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                Delete
+              </Button>
+            )}
 
-            {/* JSON Configuration */}
-            <Card>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <FileJson className="w-5 h-5" />
-                Configuration JSON
-              </h2>
-              <JsonEditor
-                value={config}
-                onChange={handleConfigChange}
-              />
-            </Card>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* File Attachments */}
-            <Card>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Upload className="w-5 h-5" />
-                LLM Grounding Files
-              </h2>
-              <FileAttachment
-                attachments={attachments}
-                onChange={handleAttachmentsChange}
-              />
-            </Card>
-
-            {/* Scenario Info */}
-            {selectedScenario && (
-              <Card>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Scenario Info</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Version:</span>
-                    <span className="font-medium">{selectedScenario.version}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Status:</span>
-                    <span className={`font-medium ${selectedScenario.is_published ? 'text-green-600' : 'text-yellow-600'}`}>
-                      {selectedScenario.is_published ? 'Published' : 'Draft'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Created:</span>
-                    <span className="font-medium">
-                      {new Date(selectedScenario.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Updated:</span>
-                    <span className="font-medium">
-                      {new Date(selectedScenario.updated_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              </Card>
+            {h.scenarioId && h.isAdmin && (
+              <Button
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white gap-1.5 text-xs shadow-lg shadow-emerald-500/20"
+                onClick={h.handlePublish}
+                disabled={h.publishing}
+              >
+                {h.publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                Publish
+              </Button>
             )}
           </div>
         </div>
 
-        {/* Preview Modal */}
-        {showPreview && (
-          <ScenarioPreview
-            config={config}
-            onClose={() => setShowPreview(false)}
-          />
+        {/* Save / error messages */}
+        {h.saveMessage && (
+          <div
+            className={`mt-3 px-4 py-2 rounded-xl text-sm flex items-center gap-2 ${
+              h.saveMessage.type === 'success'
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : h.saveMessage.type === 'error'
+                ? 'bg-red-50 text-red-700 border border-red-200'
+                : 'bg-blue-50 text-blue-700 border border-blue-200'
+            }`}
+          >
+            {h.saveMessage.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 shrink-0" />
+            )}
+            {h.saveMessage.text}
+          </div>
         )}
       </div>
+
+      {/* ── Tab bar ─────────────────────────────────────────────────────── */}
+      <div className="shrink-0 border-b border-slate-200 bg-white px-6">
+        <div className="flex gap-1 overflow-x-auto no-scrollbar -mb-px">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  isActive
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Content area ────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {TAB_MAP[activeTab]?.(h)}
+        </div>
+      </div>
+
+      {/* ── Modals ──────────────────────────────────────────────────────── */}
+      {showGenerateModal && (
+        <ScenarioGenerateModal
+          onClose={() => setShowGenerateModal(false)}
+          onGenerate={async (payload) => {
+            const ok = await h.generateConfig(payload);
+            if (ok) setShowGenerateModal(false);
+          }}
+          generating={h.generating}
+        />
+      )}
+
+      {showSimulator && h.scenarioId && (
+        <ScenarioSimulator
+          scenario={{ id: h.scenarioId, name: h.name, config: h.config }}
+          onClose={() => setShowSimulator(false)}
+        />
+      )}
     </div>
   );
 }
-
-export default ScenarioConfiguration;

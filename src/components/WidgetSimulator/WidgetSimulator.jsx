@@ -1,7 +1,70 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, RotateCcw, AlertTriangle, Send, Bot, User, Loader2 } from 'lucide-react';
+import { X, RotateCcw, AlertTriangle, Send, Bot, User, Loader2, Paperclip } from 'lucide-react';
 import { Button } from '../Button';
-import api from '../../services/api';
+import api, { API_BASE_URL } from '../../services/api';
+import { domainService, scenarioService, workspaceService } from '../../services';
+
+function pickDisplayName(...candidates) {
+  return candidates.find((value) => typeof value === 'string' && value.trim())?.trim() || 'Plasthic';
+}
+
+function applyScenarioVariables(text, visitorName, brandName) {
+  if (typeof text !== 'string') return '';
+  const firstName = (visitorName || 'there').trim().split(/\s+/)[0] || 'there';
+  const resolvedBrandName = brandName || 'Plasthic';
+
+  return text
+    .replace(/\{name\}/gi, firstName)
+    .replace(/\{first_name\}/gi, firstName)
+    .replace(/\{agent_name\}/gi, resolvedBrandName)
+    .replace(/\{company\}/gi, resolvedBrandName);
+}
+
+function sortByPriorityDesc(items) {
+  return (Array.isArray(items) ? items : []).slice().sort((a, b) => (b?.priority || 0) - (a?.priority || 0));
+}
+
+function getInitialMessageFromScenario(scenarioConfig, visitorName, brandName) {
+  if (!scenarioConfig || typeof scenarioConfig !== 'object') return null;
+
+  // Legacy (step-based) scenarios
+  if (scenarioConfig.entry_step_id && scenarioConfig.steps) {
+    const entryStep = scenarioConfig.steps?.[scenarioConfig.entry_step_id];
+    const stepText =
+      entryStep?.content ||
+      entryStep?.message ||
+      entryStep?.text ||
+      entryStep?.question ||
+      entryStep?.prompt;
+
+    const resolved = applyScenarioVariables(stepText, visitorName, brandName);
+    return resolved.trim() ? resolved : null;
+  }
+
+  // Stage-based scenarios
+  if (scenarioConfig.stages) {
+    const stages = Array.isArray(scenarioConfig.stages)
+      ? sortByPriorityDesc(scenarioConfig.stages)
+      : sortByPriorityDesc(Object.values(scenarioConfig.stages || {}));
+
+    const firstStage = stages.find((stage) => stage?.entry_condition?.type === 'first_message') || stages[0];
+    if (!firstStage) return null;
+
+    const tasks = Array.isArray(firstStage.tasks)
+      ? sortByPriorityDesc(firstStage.tasks)
+      : sortByPriorityDesc(Object.values(firstStage.tasks || {}));
+
+    for (const task of tasks) {
+      const phrase = task?.approved_phrases?.[0] || task?.fallback_phrases?.[0];
+      const resolved = applyScenarioVariables(phrase, visitorName, brandName);
+      if (resolved.trim()) return resolved;
+    }
+
+    return null;
+  }
+
+  return null;
+}
 
 /**
  * WidgetSimulator
@@ -23,17 +86,87 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
   const [input, setInput] = useState('');
   const [leadId, setLeadId] = useState(null);
   const [sessionId] = useState(() => `sim-${Date.now()}`);
+  const [resolvedBrandName, setResolvedBrandName] = useState(workspaceName);
+  const [publishedScenarioConfig, setPublishedScenarioConfig] = useState(null);
+  const [isContextLoading, setIsContextLoading] = useState(true);
   const [isInitialising, setIsInitialising] = useState(true);
   const [initError, setInitError] = useState(null);
   const [isSending, setIsSending] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [pendingAttachment, setPendingAttachment] = useState(null);
   const [isFallbackMode, setIsFallbackMode] = useState(false);
   const endRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Scroll to the latest message whenever messages update.
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isSending]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWidgetContext() {
+      setIsContextLoading(true);
+      try {
+        const [workspace, domains, scenarios] = await Promise.all([
+          workspaceId ? workspaceService.getWorkspace(workspaceId) : Promise.resolve(null),
+          domainService.getDomains().catch(() => []),
+          scenarioService.getScenarios().catch(() => []),
+        ]);
+
+        if (cancelled) return;
+
+        const activeDomain = (Array.isArray(domains) ? domains : []).find((domain) => domain.is_active) || domains?.[0];
+        const publishedScenario = (Array.isArray(scenarios) ? scenarios : []).find((scenario) => scenario.is_published);
+        setResolvedBrandName(
+          pickDisplayName(
+            activeDomain?.brand_name,
+            publishedScenario?.name,
+            workspace?.name,
+            workspaceName,
+            'Plasthic',
+          ),
+        );
+
+        if (publishedScenario?.id) {
+          const scenarioDetail = await scenarioService.getScenario(publishedScenario.id);
+          if (!cancelled) {
+            setPublishedScenarioConfig(scenarioDetail?.config || null);
+            setResolvedBrandName(
+              pickDisplayName(
+                activeDomain?.brand_name,
+                scenarioDetail?.name,
+                publishedScenario?.name,
+                workspace?.name,
+                workspaceName,
+                'Plasthic',
+              ),
+            );
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setResolvedBrandName(pickDisplayName(workspaceName, 'Plasthic'));
+        }
+      } finally {
+        if (!cancelled) setIsContextLoading(false);
+      }
+    }
+
+    loadWidgetContext();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, workspaceName]);
+
+  const initialGreeting = getInitialMessageFromScenario(
+    publishedScenarioConfig,
+    'Simulator User',
+    resolvedBrandName,
+  );
 
   // Start the conversation session as soon as the simulator opens.
   useEffect(() => {
@@ -42,6 +175,13 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     async function init() {
       setIsInitialising(true);
       setInitError(null);
+
+      if (isContextLoading) return;
+      if (!publishedScenarioConfig) {
+        setInitError('No published scenario found for this workspace. Publish a scenario to simulate the chatbot.');
+        setIsInitialising(false);
+        return;
+      }
 
       try {
         // Create a simulator lead via the public widget API
@@ -54,13 +194,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
         if (cancelled) return;
 
         setLeadId(res.lead_id);
-        setMessages([
-          {
-            id: 1,
-            role: 'bot',
-            content: `Hi! I am the ${workspaceName} assistant. How can I help you today?`,
-          },
-        ]);
+        setMessages([]);
       } catch (err) {
         if (!cancelled) {
           setInitError(err.message || 'Failed to start conversation. Check your connection and try again.');
@@ -78,7 +212,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, workspaceName]);
+  }, [workspaceId, isContextLoading, publishedScenarioConfig, initialGreeting]);
 
   const pushBotMessage = (content) => {
     setMessages((prev) => [
@@ -87,28 +221,64 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     ]);
   };
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File too large (max 10MB)');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('workspace_id', workspaceId);
+
+      const res = await api.widget.upload(formData);
+      
+      if (res?.url) {
+        setPendingAttachment(res.url);
+      }
+    } catch (err) {
+      alert(`Upload failed: ${err.message}`);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleSend = async (event) => {
     if (event) event.preventDefault();
 
     const trimmed = input.trim();
-    if (!trimmed || isFallbackMode || isSending || !leadId) return;
+    if ((!trimmed && !pendingAttachment) || isFallbackMode || isSending || isUploading || !leadId) return;
+    const isFirstTurn = !messages.some((message) => message.role === 'user');
 
-    setMessages((prev) => [
-      ...prev,
-      { id: Date.now(), role: 'user', content: trimmed },
-    ]);
+    const curAttachment = pendingAttachment;
+    setPendingAttachment(null);
     setInput('');
     setIsSending(true);
 
+    setMessages((prev) => [
+      ...prev,
+      { id: Date.now(), role: 'user', content: trimmed, attachmentUrl: curAttachment },
+    ]);
+
     try {
-      const res = await api.widget.sendMessage({
+      const payload = {
         workspace_id: workspaceId,
         lead_id: leadId,
         message: trimmed,
         channel: 'web',
         session_id: sessionId,
-      });
-      pushBotMessage(res.bot_reply || '[No response]');
+      };
+      if (curAttachment) {
+        payload.attachments = [curAttachment];
+      }
+      const res = await api.widget.sendMessage(payload);
+      pushBotMessage((isFirstTurn && initialGreeting) || res.bot_reply || '[No response]');
     } catch (err) {
       pushBotMessage(`Error: ${err.message || 'Could not get a response. Please try again.'}`);
     } finally {
@@ -133,6 +303,13 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     setIsInitialising(true);
     setInitError(null);
 
+    if (isContextLoading) return;
+    if (!publishedScenarioConfig) {
+      setInitError('No published scenario found for this workspace. Publish a scenario to simulate the chatbot.');
+      setIsInitialising(false);
+      return;
+    }
+
     try {
       const res = await api.widget.createLead({
         workspace_id: workspaceId,
@@ -141,13 +318,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
         consent_given: true,
       });
       setLeadId(res.lead_id);
-      setMessages([
-        {
-          id: 1,
-          role: 'bot',
-          content: `Hi! I am the ${workspaceName} assistant. How can I help you today?`,
-        },
-      ]);
+      setMessages([]);
     } catch (err) {
       setInitError(err.message || 'Failed to restart conversation.');
     } finally {
@@ -162,7 +333,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     pushBotMessage(fallbackMessage || 'Please leave your details and our team will contact you shortly.');
   };
 
-  const isInputDisabled = isFallbackMode || isSending || isInitialising || !!initError || !leadId;
+  const isInputDisabled = isFallbackMode || isSending || isInitialising || isContextLoading || !!initError || !leadId;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -175,7 +346,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
             </div>
             <div>
               <h3 className="text-sm font-semibold text-gray-900">Widget Simulator</h3>
-              <p className="text-xs text-gray-500">{workspaceName}</p>
+              <p className="text-xs text-gray-500">{resolvedBrandName}</p>
             </div>
           </div>
           <button
@@ -221,6 +392,14 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
             </div>
           )}
 
+          {!isInitialising && !initError && messages.length === 0 && (
+            <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-gray-400">
+              <Bot size={28} className="text-gray-300" />
+              <p className="text-sm font-medium">Send the first message</p>
+              <p className="max-w-xs text-xs">The widget will show the configured greeting after the visitor sends the first message.</p>
+            </div>
+          )}
+
           {/* Messages */}
           {!isInitialising && !initError && messages.map((message) => (
             <div
@@ -241,6 +420,13 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
                     : 'rounded-tl-sm bg-gray-100 text-gray-800'
                 }`}
               >
+                {message.attachmentUrl && (
+                  <img
+                    src={message.attachmentUrl.startsWith('/') ? `${API_BASE_URL}${message.attachmentUrl}` : message.attachmentUrl}
+                    alt="Attachment"
+                    className="mb-2 max-w-full rounded-lg border border-white/20"
+                  />
+                )}
                 {message.content}
               </div>
             </div>
@@ -277,7 +463,46 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
 
         {/* Input bar */}
         <form onSubmit={handleSend} className="shrink-0 border-t border-gray-200 p-3">
+          {pendingAttachment && (
+            <div className="mb-2 flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 p-2">
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
+                <img
+                  src={pendingAttachment.startsWith('/') ? `${API_BASE_URL}${pendingAttachment}` : pendingAttachment}
+                  alt="Preview"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <p className="truncate text-xs font-medium text-gray-700">Photo attached</p>
+                <p className="text-[10px] text-gray-400">Ready to send</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPendingAttachment(null)}
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-gray-500 transition-colors hover:bg-gray-300 hover:text-gray-700"
+                title="Remove photo"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
           <div className="flex items-end gap-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              className="hidden"
+              accept="image/jpeg, image/png, image/webp"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isInputDisabled}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+              title="Attach photo"
+            >
+              {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
+            </button>
             <textarea
               ref={inputRef}
               value={input}
@@ -293,12 +518,14 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
                   ? 'Starting conversation…'
                   : initError
                   ? 'Conversation unavailable.'
+                  : pendingAttachment
+                  ? 'Photo attached... (Add a note)'
                   : 'Type a message… (Enter to send)'
               }
             />
             <button
               type="submit"
-              disabled={isInputDisabled || !input.trim()}
+              disabled={isInputDisabled || (!input.trim() && !pendingAttachment) || isUploading}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-200"
               title="Send message"
             >

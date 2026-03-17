@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Shield, Bell, Users, CreditCard, Loader2, UserPlus, X } from 'lucide-react';
+import { Settings as SettingsIcon, Shield, Bell, Users, CreditCard, Loader2, UserPlus, X, Eye, EyeOff } from 'lucide-react';
 import { Button, PageHeader, SettingsNavItem } from '../../components';
 import useAuthStore from '../../stores/authStore';
 import { workspaceService, userService } from '../../services';
+
+const MIN_PASSWORD_LENGTH = 8;
 
 const NAV_ITEMS = [
     { key: 'workspace', label: 'Workspace', icon: SettingsIcon },
@@ -32,6 +34,7 @@ export default function Settings() {
     const [inviteFullName, setInviteFullName] = useState('');
     const [inviteRole, setInviteRole] = useState('agent');
     const [invitePassword, setInvitePassword] = useState('');
+    const [showInvitePassword, setShowInvitePassword] = useState(false);
     const [inviting, setInviting] = useState(false);
     const [inviteError, setInviteError] = useState('');
     const [inviteSuccess, setInviteSuccess] = useState('');
@@ -129,6 +132,11 @@ export default function Settings() {
     const handleInviteUser = async (e) => {
         e.preventDefault();
         if (!inviteEmail.trim() || !invitePassword.trim()) return;
+
+        if (invitePassword.length < MIN_PASSWORD_LENGTH) {
+            setInviteError(`Password harus minimal ${MIN_PASSWORD_LENGTH} karakter.`);
+            return;
+        }
 
         setInviting(true);
         setInviteError('');
@@ -293,14 +301,28 @@ export default function Settings() {
 
                               <div>
                                 <label className="block text-xs font-medium text-slate-700 mb-1">Temporary Password <span className="text-red-500">*</span></label>
-                                <input
-                                  type="password"
-                                  value={invitePassword}
-                                  onChange={(e) => setInvitePassword(e.target.value)}
-                                  required
-                                  placeholder="Set initial password"
-                                  className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl p-3 focus:ring-indigo-500 focus:border-indigo-500"
-                                />
+                                                                <div className="relative">
+                                                                    <input
+                                                                        type={showInvitePassword ? 'text' : 'password'}
+                                                                        value={invitePassword}
+                                                                        onChange={(e) => setInvitePassword(e.target.value)}
+                                                                        required
+                                                                        minLength={MIN_PASSWORD_LENGTH}
+                                                                        placeholder="Set initial password"
+                                                                        className="w-full bg-white border border-slate-200 text-slate-800 text-sm rounded-xl p-3 pr-10 focus:ring-indigo-500 focus:border-indigo-500"
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setShowInvitePassword((value) => !value)}
+                                                                        className="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-slate-600 transition-colors"
+                                                                        aria-label={showInvitePassword ? 'Hide password' : 'Show password'}
+                                                                    >
+                                                                        {showInvitePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                                    </button>
+                                                                </div>
+                                                                <p className="mt-1 text-xs text-slate-500">
+                                                                    Password minimal {MIN_PASSWORD_LENGTH} karakter.
+                                                                </p>
                               </div>
                             </div>
 

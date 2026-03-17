@@ -1,16 +1,43 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, ArrowRight, Sparkles, Bot, MessageSquare, LayoutGrid } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Sparkles, Bot, MessageSquare, LayoutGrid, Eye, EyeOff, Loader2 } from 'lucide-react';
+import useAuthStore from '../../../stores/authStore';
+
+const MIN_PASSWORD_LENGTH = 8;
 
 function SignUp() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
     const navigate = useNavigate();
+    const signup = useAuthStore((s) => s.signup);
 
-    const handleSignUp = (e) => {
+    const handleSignUp = async (e) => {
         e.preventDefault();
-        navigate('/dashboard');
+        setErrorMsg('');
+
+        if (password.length < MIN_PASSWORD_LENGTH) {
+            setErrorMsg(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            await signup({
+                fullName: name,
+                email,
+                password,
+            });
+            navigate('/dashboard');
+        } catch (err) {
+            setErrorMsg(err.message || 'Failed to create your account');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -88,6 +115,11 @@ function SignUp() {
                     </div>
 
                     <form className="mt-8 space-y-5" onSubmit={handleSignUp}>
+                        {errorMsg && (
+                            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium">
+                                {errorMsg}
+                            </div>
+                        )}
                         <div className="space-y-4">
                             <div>
                                 <label className="mb-1.5 block text-[13px] font-bold text-gray-700" htmlFor="name">
@@ -139,22 +171,35 @@ function SignUp() {
                                     </div>
                                     <input
                                         id="password"
-                                        type="password"
+                                        type={showPassword ? 'text' : 'password'}
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="••••••••"
-                                        className="block w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+                                        className="block w-full pl-11 pr-12 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+                                        minLength={MIN_PASSWORD_LENGTH}
                                         required
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword((value) => !value)}
+                                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
                                 </div>
+                                <p className="mt-1 text-xs text-gray-500">
+                                    Password minimal {MIN_PASSWORD_LENGTH} karakter.
+                                </p>
                             </div>
                         </div>
 
                         <button
                             type="submit"
-                            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 border border-transparent rounded-xl shadow-lg shadow-blue-500/30 text-[15px] font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all hover:scale-[1.02] active:scale-[0.98] mt-4"
+                            disabled={loading}
+                            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 border border-transparent rounded-xl shadow-lg shadow-blue-500/30 text-[15px] font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all hover:scale-[1.02] active:scale-[0.98] mt-4 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
                         >
-                            Sign up <ArrowRight className="w-4 h-4" />
+                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Sign up <ArrowRight className="w-4 h-4" /></>}
                         </button>
                     </form>
 

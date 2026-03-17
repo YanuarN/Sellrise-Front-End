@@ -42,6 +42,47 @@ const kbService = {
   async deleteFaq(id) {
     return api.delete(`/v1/kb/faqs/${id}`);
   },
+
+  // Documents — upload & auto-process
+  async uploadDocument(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = localStorage.getItem('access_token');
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+    const baseURL = api.baseURL || import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+    const response = await fetch(`${baseURL}/v1/kb/upload-document`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+      const msg = typeof error.detail === 'string' ? error.detail : error.detail?.message || 'Document upload failed';
+      const err = new Error(msg);
+      err.status = response.status;
+      err.data = error;
+      throw err;
+    }
+
+    return response.json();
+  },
+
+  async getDocuments({ status } = {}) {
+    return api.get('/v1/kb/documents', { status });
+  },
+
+  async getDocument(id) {
+    return api.get(`/v1/kb/documents/${id}`);
+  },
+
+  async deleteDocument(id) {
+    return api.delete(`/v1/kb/documents/${id}`);
+  },
 };
 
 export default kbService;
