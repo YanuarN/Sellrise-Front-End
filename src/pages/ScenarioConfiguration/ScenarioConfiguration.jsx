@@ -6,24 +6,13 @@
  *   src/components/*         – one folder per component + barrel exports
  *   constants                – tabs, defaults, templates
  */
-import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useState, useEffect } from 'react';
 import {
-  ArrowLeft,
-  Save,
-  Send,
-  Loader2,
-  Sparkles,
-  Play,
-  Trash2,
-  CheckCircle2,
-  AlertCircle,
-  Wand2,
-  Settings,
-} from "lucide-react";
+  ArrowLeft, Save, Send, Loader2, Sparkles, Play, Trash2,
+  CheckCircle2, AlertCircle, Wand2,
+} from 'lucide-react';
 import {
   Button,
-  Card,
   ScenarioSimulator,
   ScenarioGeneralTab,
   ScenarioRulesTab,
@@ -35,42 +24,27 @@ import {
   ScenarioFollowupsTab,
   ScenarioJsonEditorTab,
   ScenarioGenerateModal,
-} from "../../components";
-import useScenarioConfig from "./hooks/useScenarioConfig";
-import { TABS, DEFAULT_CONFIG } from "./constants";
-import api from "../../services/api";
+} from '../../components';
+import useScenarioConfig from './hooks/useScenarioConfig';
+import { TABS } from './constants';
 
 // ─── Tab renderer map ──────────────────────────────────────────────────────
 const TAB_MAP = {
   general: (h) => (
     <ScenarioGeneralTab
       name={h.name}
-      setName={(v) => {
-        h.setName(v);
-      }}
+      setName={(v) => { h.setName(v); }}
       description={h.description}
-      setDescription={(v) => {
-        h.setDescription(v);
-      }}
+      setDescription={(v) => { h.setDescription(v); }}
       version={h.version}
-      setVersion={(v) => {
-        h.setVersion(v);
-      }}
+      setVersion={(v) => { h.setVersion(v); }}
     />
   ),
-  rules: (h) => (
-    <ScenarioRulesTab config={h.config} updateConfig={h.updateConfig} />
-  ),
-  slots: (h) => (
-    <ScenarioSlotsTab config={h.config} updateConfig={h.updateConfig} />
-  ),
-  actions: (h) => (
-    <ScenarioActionsTab config={h.config} updateConfig={h.updateConfig} />
-  ),
-  stages: (h) => (
-    <ScenarioStagesTab config={h.config} updateConfig={h.updateConfig} />
-  ),
-  prompts: (h) => (
+  rules:      (h) => <ScenarioRulesTab config={h.config} updateConfig={h.updateConfig} />,
+  slots:      (h) => <ScenarioSlotsTab config={h.config} updateConfig={h.updateConfig} />,
+  actions:    (h) => <ScenarioActionsTab config={h.config} updateConfig={h.updateConfig} />,
+  stages:     (h) => <ScenarioStagesTab config={h.config} updateConfig={h.updateConfig} />,
+  prompts:    (h) => (
     <ScenarioPromptsTab
       config={h.config}
       updateConfig={h.updateConfig}
@@ -78,13 +52,9 @@ const TAB_MAP = {
       enhancingField={h.enhancingField}
     />
   ),
-  llm_config: (h) => (
-    <ScenarioLLMConfigTab config={h.config} updateConfig={h.updateConfig} />
-  ),
-  followups: (h) => (
-    <ScenarioFollowupsTab config={h.config} updateConfig={h.updateConfig} />
-  ),
-  json: (h) => (
+  llm_config: (h) => <ScenarioLLMConfigTab config={h.config} updateConfig={h.updateConfig} />,
+  followups:  (h) => <ScenarioFollowupsTab config={h.config} updateConfig={h.updateConfig} />,
+  json:       (h) => (
     <ScenarioJsonEditorTab
       jsonText={h.jsonText}
       jsonError={h.jsonError}
@@ -100,9 +70,9 @@ function ScenarioConfiguration() {
   const [searchParams] = useSearchParams();
   const [scenarios, setScenarios] = useState([]);
   const [selectedScenario, setSelectedScenario] = useState(null);
-  const [scenarioName, setScenarioName] = useState("");
-  const [scenarioDescription, setScenarioDescription] = useState("");
-  const [config, setConfig] = useState(DEFAULT_CONFIG);
+  const [scenarioName, setScenarioName] = useState('');
+  const [scenarioDescription, setScenarioDescription] = useState('');
+  const [config, setConfig] = useState(defaultScenarioConfig);
   const [attachments, setAttachments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -112,20 +82,16 @@ function ScenarioConfiguration() {
   const [success, setSuccess] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   const [isNewScenario, setIsNewScenario] = useState(true);
-  const [createMode, setCreateMode] = useState("manual");
+  const [createMode, setCreateMode] = useState('manual');
   const [showGenerateForm, setShowGenerateForm] = useState(false);
   const [generateForm, setGenerateForm] = useState({
-    scenario_name: "",
-    scenario_description: "",
-    primary_goal: "",
-    channel: "website_widget",
-    tone: "",
-    allowed_actions: ["#product_request", "#New_meeting_time", "#handover"],
+    scenario_name: '',
+    scenario_description: '',
+    primary_goal: '',
+    channel: 'website_widget',
+    tone: '',
+    allowed_actions: ['#product_request', '#New_meeting_time', '#handover']
   });
-  const h = useScenarioConfig();
-  const [activeTab, setActiveTab] = useState("general");
-  const [showGenerateModal, setShowGenerateModal] = useState(false);
-  const [showSimulator, setShowSimulator] = useState(false);
 
   // Load all scenarios once on mount.
   useEffect(() => {
@@ -134,7 +100,7 @@ function ScenarioConfiguration() {
 
   // Sync JSON text when switching to "json" tab
   useEffect(() => {
-    const idParam = searchParams.get("id");
+    const idParam = searchParams.get('id');
     if (idParam) {
       loadScenario(idParam);
     }
@@ -146,7 +112,7 @@ function ScenarioConfiguration() {
       const data = await api.scenarios.list();
       setScenarios(data);
     } catch (err) {
-      setError("Failed to load scenarios: " + err.message);
+      setError('Failed to load scenarios: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -158,12 +124,12 @@ function ScenarioConfiguration() {
       const data = await api.scenarios.get(scenarioId);
       setSelectedScenario(data);
       setScenarioName(data.name);
-      setScenarioDescription(data.description || "");
-      setConfig(data.config || DEFAULT_CONFIG);
+      setScenarioDescription(data.description || '');
+      setConfig(data.config || defaultScenarioConfig);
       setIsNewScenario(false);
       setError(null);
     } catch (err) {
-      setError("Failed to load scenario: " + err.message);
+      setError('Failed to load scenario: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -173,9 +139,9 @@ function ScenarioConfiguration() {
     try {
       setSaving(true);
       setError(null);
-
+      
       if (!scenarioName.trim()) {
-        setError("Scenario name is required");
+        setError('Scenario name is required');
         return;
       }
 
@@ -184,33 +150,26 @@ function ScenarioConfiguration() {
         description: scenarioDescription,
         config: {
           ...config,
-          attachments: attachments.map((a) => ({
-            id: a.id,
-            name: a.name,
-            url: a.url,
-          })),
-        },
+          attachments: attachments.map(a => ({ id: a.id, name: a.name, url: a.url }))
+        }
       };
 
       let savedScenario;
       if (isNewScenario) {
         savedScenario = await api.scenarios.create(payload);
-        setSuccess("Scenario created successfully!");
+        setSuccess('Scenario created successfully!');
       } else {
-        savedScenario = await api.scenarios.update(
-          selectedScenario.id,
-          payload,
-        );
-        setSuccess("Scenario updated successfully!");
+        savedScenario = await api.scenarios.update(selectedScenario.id, payload);
+        setSuccess('Scenario updated successfully!');
       }
 
       setSelectedScenario(savedScenario);
       setIsNewScenario(false);
       await loadScenarios();
-
+      
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError("Failed to save scenario: " + err.message);
+      setError('Failed to save scenario: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -218,7 +177,7 @@ function ScenarioConfiguration() {
 
   const handlePublish = async () => {
     if (!selectedScenario) {
-      setError("Please save the scenario first");
+      setError('Please save the scenario first');
       return;
     }
 
@@ -226,12 +185,12 @@ function ScenarioConfiguration() {
       setSaving(true);
       setError(null);
       await api.scenarios.publish(selectedScenario.id);
-      setSuccess("Scenario published successfully!");
+      setSuccess('Scenario published successfully!');
       await loadScenarios();
       await loadScenario(selectedScenario.id);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError("Failed to publish scenario: " + err.message);
+      setError('Failed to publish scenario: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -241,27 +200,23 @@ function ScenarioConfiguration() {
     try {
       setEnhancing(true);
       setError(null);
-
+      
       const response = await api.llm.enhance({
         config: config,
-        type: "config",
-        context: "full_scenario",
-        attachments: attachments.map((a) => ({ id: a.id, url: a.url })),
+        type: 'config',
+        context: 'full_scenario',
+        attachments: attachments.map(a => ({ id: a.id, url: a.url }))
       });
 
       if (response.enhanced_config) {
         setConfig(response.enhanced_config);
-        setSuccess(
-          "✨ Configuration enhanced by AI! Review the changes and save when ready.",
-        );
+        setSuccess('✨ Configuration enhanced by AI! Review the changes and save when ready.');
         setTimeout(() => setSuccess(null), 5000);
       } else if (response.suggestions && response.suggestions.length > 0) {
-        setError(
-          "AI provided suggestions but could not auto-apply them. Please check the JSON editor.",
-        );
+        setError('AI provided suggestions but could not auto-apply them. Please check the JSON editor.');
       }
     } catch (err) {
-      setError("Failed to enhance with AI: " + err.message);
+      setError('Failed to enhance with AI: ' + err.message);
     } finally {
       setEnhancing(false);
     }
@@ -269,56 +224,56 @@ function ScenarioConfiguration() {
 
   const handleNewScenario = () => {
     setSelectedScenario(null);
-    setScenarioName("");
-    setScenarioDescription("");
-    setConfig(DEFAULT_CONFIG);
+    setScenarioName('');
+    setScenarioDescription('');
+    setConfig(defaultScenarioConfig);
     setAttachments([]);
     setIsNewScenario(true);
-    setCreateMode("manual");
+    setCreateMode('manual');
     setShowGenerateForm(false);
     setGenerateForm({
-      scenario_name: "",
-      scenario_description: "",
-      primary_goal: "",
-      channel: "website_widget",
-      tone: "",
-      allowed_actions: ["#product_request", "#New_meeting_time", "#handover"],
+      scenario_name: '',
+      scenario_description: '',
+      primary_goal: '',
+      channel: 'website_widget',
+      tone: '',
+      allowed_actions: ['#product_request', '#New_meeting_time', '#handover']
     });
     setError(null);
     setSuccess(null);
   };
 
   const handleGenerateFormChange = (field, value) => {
-    setGenerateForm((prev) => ({ ...prev, [field]: value }));
+    setGenerateForm(prev => ({ ...prev, [field]: value }));
   };
 
   const toggleAllowedAction = (actionTag) => {
-    setGenerateForm((prev) => {
+    setGenerateForm(prev => {
       const exists = prev.allowed_actions.includes(actionTag);
       return {
         ...prev,
         allowed_actions: exists
-          ? prev.allowed_actions.filter((a) => a !== actionTag)
-          : [...prev.allowed_actions, actionTag],
+          ? prev.allowed_actions.filter(a => a !== actionTag)
+          : [...prev.allowed_actions, actionTag]
       };
     });
   };
 
   const handleGenerateWithAI = async () => {
     if (!generateForm.scenario_name.trim()) {
-      setError("Scenario name is required for AI generation");
+      setError('Scenario name is required for AI generation');
       return;
     }
     if (!generateForm.scenario_description.trim()) {
-      setError("Scenario description is required for AI generation");
+      setError('Scenario description is required for AI generation');
       return;
     }
     if (!generateForm.primary_goal.trim()) {
-      setError("Primary goal is required for AI generation");
+      setError('Primary goal is required for AI generation');
       return;
     }
     if (generateForm.allowed_actions.length === 0) {
-      setError("Select at least one allowed action");
+      setError('Select at least one allowed action');
       return;
     }
 
@@ -333,16 +288,13 @@ function ScenarioConfiguration() {
         channel: generateForm.channel,
         tone: generateForm.tone.trim() || undefined,
         allowed_actions: generateForm.allowed_actions,
-        business_type: "general",
-        goals: [generateForm.primary_goal.trim()],
+        business_type: 'general',
+        goals: [generateForm.primary_goal.trim()]
       });
 
       const generatedConfig = generatedDraft.config || generatedDraft;
-      const generatedName =
-        generatedDraft.scenario_name || generateForm.scenario_name.trim();
-      const generatedDescription =
-        generatedDraft.scenario_summary ||
-        generateForm.scenario_description.trim();
+      const generatedName = generatedDraft.scenario_name || generateForm.scenario_name.trim();
+      const generatedDescription = generatedDraft.scenario_summary || generateForm.scenario_description.trim();
 
       if (generatedDraft.master_prompt) {
         generatedConfig.system_prompts = generatedConfig.system_prompts || {};
@@ -372,26 +324,24 @@ function ScenarioConfiguration() {
       setScenarioDescription(savedScenario.description || generatedDescription);
       setConfig(savedScenario.config || generatedConfig);
       setIsNewScenario(false);
-      setCreateMode("manual");
+      setCreateMode('manual');
       setShowGenerateForm(false);
 
       await loadScenarios();
 
-      setSuccess(
-        "AI scenario draft generated and saved. You can now edit stages, tasks, prompts, actions, and slots.",
-      );
+      setSuccess('AI scenario draft generated and saved. You can now edit stages, tasks, prompts, actions, and slots.');
       setTimeout(() => setSuccess(null), 6000);
     } catch (err) {
-      setError("Failed to generate scenario with AI: " + err.message);
+      setError('Failed to generate scenario with AI: ' + err.message);
     } finally {
       setGenerating(false);
     }
   };
 
   const handleSystemPromptsChange = (prompts) => {
-    setConfig((prev) => ({
+    setConfig(prev => ({
       ...prev,
-      system_prompts: prompts,
+      system_prompts: prompts
     }));
   };
 
@@ -408,12 +358,8 @@ function ScenarioConfiguration() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Scenario Configuration
-          </h1>
-          <p className="text-gray-600">
-            Configure AI conversation scenarios with LLM-powered enhancements
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Scenario Configuration</h1>
+          <p className="text-gray-600">Configure AI conversation scenarios with LLM-powered enhancements</p>
         </div>
 
         {/* Alert Messages */}
@@ -430,34 +376,25 @@ function ScenarioConfiguration() {
               <p className="text-sm font-medium text-red-800">Error</p>
               <p className="text-sm text-red-700">{error}</p>
             </div>
-            <button
-              onClick={() => setError(null)}
-              className="text-red-400 hover:text-red-600"
-            >
+            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600">
               ×
             </button>
             <div>
               <h1 className="text-xl font-bold text-slate-800">
-                {h.scenarioId ? "Edit Scenario" : "New Scenario"}
+                {h.scenarioId ? 'Edit Scenario' : 'New Scenario'}
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 {h.isPublished ? (
                   <span className="inline-flex items-center gap-1 text-emerald-600">
-                    <CheckCircle2 className="w-3 h-3" /> Published (v{h.version}
-                    )
+                    <CheckCircle2 className="w-3 h-3" /> Published (v{h.version})
                   </span>
                 ) : (
                   <span className="text-slate-400">Draft (v{h.version})</span>
                 )}
-                {h.dirty && (
-                  <span className="ml-2 text-amber-500">• Unsaved changes</span>
-                )}
+                {h.dirty && <span className="ml-2 text-amber-500">• Unsaved changes</span>}
               </p>
             </div>
-            <button
-              onClick={() => setSuccess(null)}
-              className="text-green-400 hover:text-green-600"
-            >
+            <button onClick={() => setSuccess(null)} className="text-green-400 hover:text-green-600">
               ×
             </button>
           </div>
@@ -468,17 +405,13 @@ function ScenarioConfiguration() {
           <div className="flex items-center gap-3">
             <select
               className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={selectedScenario?.id || ""}
-              onChange={(e) =>
-                e.target.value
-                  ? loadScenario(e.target.value)
-                  : handleNewScenario()
-              }
+              value={selectedScenario?.id || ''}
+              onChange={(e) => e.target.value ? loadScenario(e.target.value) : handleNewScenario()}
             >
               <option value="">+ New Scenario</option>
-              {scenarios.map((s) => (
+              {scenarios.map(s => (
                 <option key={s.id} value={s.id}>
-                  {s.name} {s.is_published ? "✓" : "(draft)"}
+                  {s.name} {s.is_published ? '✓' : '(draft)'}
                 </option>
               ))}
             </select>
@@ -492,7 +425,7 @@ function ScenarioConfiguration() {
                 onChange={(e) => {
                   const nextMode = e.target.value;
                   setCreateMode(nextMode);
-                  setShowGenerateForm(nextMode === "ai");
+                  setShowGenerateForm(nextMode === 'ai');
                 }}
               >
                 <option value="manual">Manual Setup</option>
@@ -517,11 +450,7 @@ function ScenarioConfiguration() {
               onClick={h.enhanceConfig}
               disabled={h.enhancing}
             >
-              {h.enhancing ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5" />
-              )}
+              {h.enhancing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
               Enhance Config
             </Button>
 
@@ -541,11 +470,7 @@ function ScenarioConfiguration() {
               onClick={h.handleSave}
               disabled={h.saving}
             >
-              {h.saving ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Save className="w-3.5 h-3.5" />
-              )}
+              {h.saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               Save Draft
             </Button>
             <Button
@@ -571,35 +496,21 @@ function ScenarioConfiguration() {
                 </h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Scenario Name *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Scenario Name *</label>
                     <input
                       type="text"
                       value={generateForm.scenario_name}
-                      onChange={(e) =>
-                        handleGenerateFormChange(
-                          "scenario_name",
-                          e.target.value,
-                        )
-                      }
+                      onChange={(e) => handleGenerateFormChange('scenario_name', e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="e.g., Ecommerce Product Consultation"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Scenario Description *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Scenario Description *</label>
                     <textarea
                       value={generateForm.scenario_description}
-                      onChange={(e) =>
-                        handleGenerateFormChange(
-                          "scenario_description",
-                          e.target.value,
-                        )
-                      }
+                      onChange={(e) => handleGenerateFormChange('scenario_description', e.target.value)}
                       rows={4}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Describe the chatbot behavior, stage flow expectations, and conversion logic..."
@@ -608,32 +519,21 @@ function ScenarioConfiguration() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Primary Goal *
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Primary Goal *</label>
                       <input
                         type="text"
                         value={generateForm.primary_goal}
-                        onChange={(e) =>
-                          handleGenerateFormChange(
-                            "primary_goal",
-                            e.target.value,
-                          )
-                        }
+                        onChange={(e) => handleGenerateFormChange('primary_goal', e.target.value)}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="e.g., Book consultation"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Channel *
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Channel *</label>
                       <select
                         value={generateForm.channel}
-                        onChange={(e) =>
-                          handleGenerateFormChange("channel", e.target.value)
-                        }
+                        onChange={(e) => handleGenerateFormChange('channel', e.target.value)}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="website_widget">Website Widget</option>
@@ -646,45 +546,27 @@ function ScenarioConfiguration() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tone (optional)
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Tone (optional)</label>
                     <input
                       type="text"
                       value={generateForm.tone}
-                      onChange={(e) =>
-                        handleGenerateFormChange("tone", e.target.value)
-                      }
+                      onChange={(e) => handleGenerateFormChange('tone', e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="e.g., Helpful and sales-oriented"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Allowed Actions *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Allowed Actions *</label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {[
-                        "#product_request",
-                        "#New_meeting_time",
-                        "#handover",
-                        "#stop_script",
-                      ].map((actionTag) => (
-                        <label
-                          key={actionTag}
-                          className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50"
-                        >
+                      {['#product_request', '#New_meeting_time', '#handover', '#stop_script'].map((actionTag) => (
+                        <label key={actionTag} className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
                           <input
                             type="checkbox"
-                            checked={generateForm.allowed_actions.includes(
-                              actionTag,
-                            )}
+                            checked={generateForm.allowed_actions.includes(actionTag)}
                             onChange={() => toggleAllowedAction(actionTag)}
                           />
-                          <span className="text-sm text-gray-800">
-                            {actionTag}
-                          </span>
+                          <span className="text-sm text-gray-800">{actionTag}</span>
                         </label>
                       ))}
                     </div>
@@ -695,7 +577,7 @@ function ScenarioConfiguration() {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        setCreateMode("manual");
+                        setCreateMode('manual');
                         setShowGenerateForm(false);
                       }}
                     >
@@ -763,26 +645,14 @@ function ScenarioConfiguration() {
                 variant="outline"
                 className="gap-1.5 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
                 onClick={() => {
-                  if (
-                    window.confirm(
-                      "Delete this scenario? This action cannot be undone.",
-                    )
-                  ) {
+                  if (window.confirm('Delete this scenario? This action cannot be undone.')) {
                     h.handleDelete();
                   }
                 }}
                 disabled={h.deleting}
-                title={
-                  h.isPublished
-                    ? "Published scenarios cannot be deleted."
-                    : "Delete scenario"
-                }
+                title={h.isPublished ? 'Published scenarios cannot be deleted.' : 'Delete scenario'}
               >
-                {h.deleting ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="w-3.5 h-3.5" />
-                )}
+                {h.deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 Delete
               </Button>
             )}
@@ -793,11 +663,7 @@ function ScenarioConfiguration() {
                 onClick={h.handlePublish}
                 disabled={h.publishing}
               >
-                {h.publishing ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Send className="w-3.5 h-3.5" />
-                )}
+                {h.publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 Publish
               </Button>
             )}
@@ -808,14 +674,14 @@ function ScenarioConfiguration() {
         {h.saveMessage && (
           <div
             className={`mt-3 px-4 py-2 rounded-xl text-sm flex items-center gap-2 ${
-              h.saveMessage.type === "success"
-                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                : h.saveMessage.type === "error"
-                  ? "bg-red-50 text-red-700 border border-red-200"
-                  : "bg-blue-50 text-blue-700 border border-blue-200"
+              h.saveMessage.type === 'success'
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : h.saveMessage.type === 'error'
+                ? 'bg-red-50 text-red-700 border border-red-200'
+                : 'bg-blue-50 text-blue-700 border border-blue-200'
             }`}
           >
-            {h.saveMessage.type === "success" ? (
+            {h.saveMessage.type === 'success' ? (
               <CheckCircle2 className="w-4 h-4 shrink-0" />
             ) : (
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -837,8 +703,8 @@ function ScenarioConfiguration() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
                   isActive
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
