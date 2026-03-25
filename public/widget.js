@@ -160,11 +160,6 @@
     return e;
   }
 
-  function debugWidget(eventName, payload) {
-    if (!w.console || typeof w.console.log !== 'function') return;
-    w.console.log('[Sellrise Widget Debug]', eventName, payload || {});
-  }
-
   /* ── Main init ───────────────────────────────────────────────────────── */
   function init(config) {
     var apiBase   = config.apiBaseUrl   || 'http://localhost:8000';
@@ -393,15 +388,6 @@
       document.getElementById('sr-preview-row').style.display = 'none';
       document.getElementById('sr-input').placeholder = "Type a message…";
 
-      debugWidget('message:submit', {
-        workspace_id: workspace,
-        lead_id: leadId,
-        session_id: sessionId,
-        message: normalizedText,
-        attachments: curAttachment ? [curAttachment] : [],
-        is_first_turn: isFirstTurn,
-      });
-
       addMessage('user', text, curAttachment);
       document.getElementById('sr-input').value = '';
       autoResize(document.getElementById('sr-input'));
@@ -421,13 +407,6 @@
 
       postJSON(apiBase + '/v1/widget/message', payload)
         .then(function (res) {
-          debugWidget('message:response', {
-            request_message: normalizedText,
-            bot_reply: res.bot_reply,
-            current_stage: res.current_stage,
-            current_task: res.current_task,
-            actions: res.actions || [],
-          });
           hideTyping();
           if (isFirstTurn) {
             hasShownGreeting = true;
@@ -437,10 +416,6 @@
           addMessage('bot', res.bot_reply || '(no reply)');
         })
         .catch(function (err) {
-          debugWidget('message:error', {
-            request_message: normalizedText,
-            error: err && err.message ? err.message : 'Could not get a response.',
-          });
           hideTyping();
           showError('Error: ' + (err.message || 'Could not get a response.'));
         })
