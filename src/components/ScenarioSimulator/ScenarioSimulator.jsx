@@ -32,10 +32,6 @@ function sortByPriorityDesc(items) {
   return (Array.isArray(items) ? items : []).slice().sort((a, b) => (b?.priority || 0) - (a?.priority || 0));
 }
 
-function debugScenarioSimulator(eventName, payload = {}) {
-  console.log('[Sellrise Scenario Simulator Debug]', eventName, payload);
-}
-
 /**
  * Extract the clean bot reply text from an API response.
  * The simulate endpoint returns { reply, slots, stage_id }.
@@ -220,14 +216,6 @@ function ScenarioSimulator({ scenario, onClose }) {
     // not also appear in the history array.
     const history = buildHistory();
 
-    debugScenarioSimulator('message:submit', {
-      scenario_id: scenario.id,
-      message: text,
-      history,
-      current_slots: slots,
-      is_first_turn: isFirstTurn,
-    });
-
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setSending(true);
@@ -246,13 +234,6 @@ function ScenarioSimulator({ scenario, onClose }) {
         extractBotReply(res) ||
         '[No response]';
 
-      debugScenarioSimulator('message:response', {
-        request_message: text,
-        bot_reply: botContent,
-        returned_slots: res?.slots || {},
-        stage_id: res?.stage_id || null,
-      });
-
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: botContent },
@@ -261,10 +242,6 @@ function ScenarioSimulator({ scenario, onClose }) {
       if (res?.slots) setSlots(res.slots);
       if (res?.stage_id) setCurrentStage(res.stage_id);
     } catch (err) {
-      debugScenarioSimulator('message:error', {
-        request_message: text,
-        error: err.message || 'Failed to get a response. Please try again.',
-      });
       setError(err.message || 'Failed to get a response. Please try again.');
     } finally {
       setSending(false);
