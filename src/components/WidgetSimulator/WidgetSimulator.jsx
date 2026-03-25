@@ -24,6 +24,8 @@ function sortByPriorityDesc(items) {
   return (Array.isArray(items) ? items : []).slice().sort((a, b) => (b?.priority || 0) - (a?.priority || 0));
 }
 
+
+
 function getInitialMessageFromScenario(scenarioConfig, visitorName, brandName) {
   if (!scenarioConfig || typeof scenarioConfig !== 'object') return null;
 

@@ -383,6 +383,7 @@
       isSending = true;
       var isFirstTurn = !hasShownGreeting;
       var curAttachment = pendingAttachment;
+      var normalizedText = text.trim();
       pendingAttachment = null;
       document.getElementById('sr-preview-row').style.display = 'none';
       document.getElementById('sr-input').placeholder = "Type a message…";
