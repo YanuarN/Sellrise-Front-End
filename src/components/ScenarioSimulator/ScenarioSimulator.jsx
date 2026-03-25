@@ -32,6 +32,47 @@ function sortByPriorityDesc(items) {
   return (Array.isArray(items) ? items : []).slice().sort((a, b) => (b?.priority || 0) - (a?.priority || 0));
 }
 
+function debugScenarioSimulator(eventName, payload = {}) {
+  console.log('[Sellrise Scenario Simulator Debug]', eventName, payload);
+}
+
+/**
+ * Extract the clean bot reply text from an API response.
+ * The simulate endpoint returns { reply, slots, stage_id }.
+ * However the fallback path may return the raw LLM JSON string as `reply`
+ * (e.g. '{ "reply_text": "Hello", "stage_id": "..." }').
+ * This helper unwraps that so the user never sees raw JSON.
+ */
+function extractBotReply(res) {
+  // Primary field from /simulate endpoint
+  const raw = res?.bot_reply ?? res?.reply ?? res?.reply_text ?? null;
+  if (!raw) return null;
+
+  // If it's already a plain string that doesn't look like JSON, return it.
+  const trimmed = typeof raw === 'string' ? raw.trim() : String(raw).trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return trimmed || null;
+
+  // Try to parse as JSON and extract the text field.
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed && typeof parsed === 'object') {
+      const text =
+        parsed.reply_text ||
+        parsed.reply ||
+        parsed.bot_reply ||
+        parsed.message ||
+        parsed.text ||
+        null;
+      if (text && typeof text === 'string' && text.trim()) return text.trim();
+    }
+  } catch {
+    // Not valid JSON — return as-is (better than showing nothing)
+  }
+
+  // If we couldn't extract anything sensible, return the raw string.
+  return trimmed || null;
+}
+
 function getInitialMessageFromScenario(scenarioConfig, brandName) {
   if (!scenarioConfig || typeof scenarioConfig !== 'object') return null;
 
@@ -179,6 +220,14 @@ function ScenarioSimulator({ scenario, onClose }) {
     // not also appear in the history array.
     const history = buildHistory();
 
+    debugScenarioSimulator('message:submit', {
+      scenario_id: scenario.id,
+      message: text,
+      history,
+      current_slots: slots,
+      is_first_turn: isFirstTurn,
+    });
+
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setSending(true);
@@ -194,10 +243,15 @@ function ScenarioSimulator({ scenario, onClose }) {
 
       const botContent =
         (isFirstTurn && initialGreeting) ||
-        res?.reply ||
-        res?.message ||
-        res?.content ||
+        extractBotReply(res) ||
         '[No response]';
+
+      debugScenarioSimulator('message:response', {
+        request_message: text,
+        bot_reply: botContent,
+        returned_slots: res?.slots || {},
+        stage_id: res?.stage_id || null,
+      });
 
       setMessages((prev) => [
         ...prev,
@@ -207,6 +261,10 @@ function ScenarioSimulator({ scenario, onClose }) {
       if (res?.slots) setSlots(res.slots);
       if (res?.stage_id) setCurrentStage(res.stage_id);
     } catch (err) {
+      debugScenarioSimulator('message:error', {
+        request_message: text,
+        error: err.message || 'Failed to get a response. Please try again.',
+      });
       setError(err.message || 'Failed to get a response. Please try again.');
     } finally {
       setSending(false);

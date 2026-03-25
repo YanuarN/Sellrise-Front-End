@@ -24,6 +24,10 @@ function sortByPriorityDesc(items) {
   return (Array.isArray(items) ? items : []).slice().sort((a, b) => (b?.priority || 0) - (a?.priority || 0));
 }
 
+function debugWidgetSimulator(eventName, payload = {}) {
+  console.log('[Sellrise Widget Simulator Debug]', eventName, payload);
+}
+
 function getInitialMessageFromScenario(scenarioConfig, visitorName, brandName) {
   if (!scenarioConfig || typeof scenarioConfig !== 'object') return null;
 
@@ -257,6 +261,15 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     const isFirstTurn = !messages.some((message) => message.role === 'user');
 
     const curAttachment = pendingAttachment;
+    debugWidgetSimulator('message:submit', {
+      workspace_id: workspaceId,
+      lead_id: leadId,
+      session_id: sessionId,
+      message: trimmed,
+      attachments: curAttachment ? [curAttachment] : [],
+      is_first_turn: isFirstTurn,
+    });
+
     setPendingAttachment(null);
     setInput('');
     setIsSending(true);
@@ -278,8 +291,21 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
         payload.attachments = [curAttachment];
       }
       const res = await api.widget.sendMessage(payload);
+      debugWidgetSimulator('message:response', {
+        request_message: trimmed,
+        bot_reply: res?.bot_reply,
+        current_stage: res?.current_stage,
+        current_task: res?.current_task,
+        actions: res?.actions || [],
+        slots: res?.slots || {},
+        slots_update: res?.slots_update || {},
+      });
       pushBotMessage((isFirstTurn && initialGreeting) || res.bot_reply || '[No response]');
     } catch (err) {
+      debugWidgetSimulator('message:error', {
+        request_message: trimmed,
+        error: err.message || 'Could not get a response. Please try again.',
+      });
       pushBotMessage(`Error: ${err.message || 'Could not get a response. Please try again.'}`);
     } finally {
       setIsSending(false);
