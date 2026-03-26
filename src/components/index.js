@@ -13,6 +13,7 @@ export { default as KBDocumentUpload } from './KBDocumentUpload';
 export { default as KBDocumentList } from './KBDocumentList';
 export { default as SettingsNavItem } from './SettingsNavItem';
 export { default as ProtectedRoute } from './ProtectedRoute';
+export { default as PublicRoute } from './PublicRoute';
 export { default as StepRenderer } from './StepRenderer';
 export { default as ScenarioGeneralTab } from './ScenarioGeneralTab';
 export { default as ScenarioRulesTab } from './ScenarioRulesTab';
