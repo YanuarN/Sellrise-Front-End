@@ -162,18 +162,27 @@
 
   /* ── Main init ───────────────────────────────────────────────────────── */
   function init(config) {
-    var apiBase   = config.apiBaseUrl   || 'http://localhost:8000';
-    var workspace = config.workspace    || '';
-    var sessionId = config.sessionId    || ('sr_' + Date.now());
-    var branding  = config.branding     || {};
-    var position  = config.position     || 'bottom-right';
-    var scenario  = config.scenario     || null;
-    var brandName = branding.brand_name || 'Plashic';
-    var brandColor= branding.brand_primary_color || '#2563eb';
+    var apiBase        = config.apiBaseUrl   || 'http://localhost:8000';
+    var workspace      = config.workspace    || '';
+    var sessionId      = config.sessionId    || ('sr_' + Date.now());
+    var branding       = config.branding     || {};
+    var scenario       = config.scenario     || null;
+    var brandName      = branding.brand_name || 'Plashic';
+    var brandColor     = branding.brand_primary_color || '#2563eb';
+    var bubbleColor    = branding.bubble_color || brandColor;
+    var bubbleIcon     = branding.bubble_icon || null;
+    var position       = branding.position || config.position || 'bottom-right';
+    var borderRadius   = branding.border_radius ? branding.border_radius + 'px' : '16px';
+    var bubbleSize     = branding.bubble_size || 'large';
+    var bubblePx       = bubbleSize === 'small' ? '44px' : bubbleSize === 'medium' ? '50px' : '56px';
 
-    /* Apply brand colour to any --sr-color var in the injected CSS */
+    /* Apply brand colours to injected CSS */
     var root = document.querySelector('#sr-widget-css');
-    if (root) root.textContent = CSS.replace(/#2563eb/g, brandColor).replace(/#1d4ed8/g, shadeColor(brandColor, -15));
+    if (root) {
+      root.textContent = CSS
+        .replace(/#2563eb/g, brandColor)
+        .replace(/#1d4ed8/g, shadeColor(brandColor, -15));
+    }
 
     /* Adjust position */
     var side   = (position === 'bottom-left') ? 'left' : 'right';
@@ -194,7 +203,12 @@
     var bubble = el('button', { id: 'sr-bubble' });
     bubble.style[side] = '20px';
     bubble.style[oppSide] = 'auto';
-    bubble.innerHTML = SVG_CHAT;
+    bubble.style.width = bubblePx;
+    bubble.style.height = bubblePx;
+    bubble.style.background = bubbleColor;
+    bubble.innerHTML = bubbleIcon
+      ? '<span style="font-size:22px;line-height:1">' + escHtml(bubbleIcon) + '</span>'
+      : SVG_CHAT;
     var badge = el('span', { id: 'sr-badge' });
     bubble.appendChild(badge);
 
@@ -202,6 +216,7 @@
     var panel = el('div', { id: 'sr-panel' });
     panel.style[side] = '20px';
     panel.style[oppSide] = 'auto';
+    panel.style.borderRadius = borderRadius;
 
     /* Header */
     var header = el('div', { id: 'sr-panel-header' });
@@ -217,14 +232,10 @@
     /* Messages area */
     var messagesEl = el('div', { id: 'sr-messages' });
 
-    /* Lead capture form (shown before chat) */
+    /* Lead capture form (hidden – contact info collected via chatbot scenario) */
     var leadFormEl = el('div', { id: 'sr-lead-form' });
+    leadFormEl.style.display = 'none';
     leadFormEl.innerHTML =
-      '<p>To get started, please tell us a little about yourself.</p>' +
-      '<input id="sr-name" type="text" placeholder="Your name" autocomplete="name" />' +
-      '<input id="sr-email" type="email" placeholder="Email address" autocomplete="email" />' +
-      '<input id="sr-phone" type="tel" placeholder="Phone (optional)" autocomplete="tel" />' +
-      '<button id="sr-lead-submit">Start Chat</button>' +
       '<p id="sr-lead-err" class="sr-status-msg" style="color:#ef4444;display:none"></p>';
 
     /* Preview row */
@@ -235,7 +246,7 @@
       '<button id="sr-preview-remove" title="Remove">&times;</button>';
 
     /* Input row */
-    var inputRow = el('div', { id: 'sr-input-row', style: 'display:none' });
+    var inputRow = el('div', { id: 'sr-input-row' });
     inputRow.innerHTML =
       '<button id="sr-attach" aria-label="Attach photo" type="button">' + SVG_ATTACH + '</button>' +
       '<input type="file" id="sr-file-input" accept="image/jpeg, image/png, image/webp" style="display:none" />' +
@@ -298,6 +309,28 @@
       });
     }
 
+    /* ── Anonymous lead auto-creation ────────────────────────────────────── */
+    function autoCreateLead() {
+      postJSON(apiBase + '/v1/widget/lead', {
+        workspace_id: workspace,
+        session_id: sessionId,
+        email: 'visitor-' + sessionId + '@widget.local',
+        consent_given: true,
+      })
+        .then(function (res) {
+          leadId = res.lead_id;
+          hasShownGreeting = false;
+          /* Show initial greeting from the scenario */
+          var greeting = getGreetingFromScenario('there');
+          addMessage('bot', greeting);
+          hasShownGreeting = true;
+          document.getElementById('sr-input') && document.getElementById('sr-input').focus();
+        })
+        .catch(function (err) {
+          console.warn('[Sellrise] Could not initialize chat session:', err.message);
+        });
+    }
+
     /* ── Lead creation ─────────────────────────────────────────────────── */
     function getGreetingFromScenario(name) {
       /* Try to extract the first approved phrase from the scenario's first stage/task */
@@ -347,36 +380,6 @@
       return 'Hi ' + name.split(' ')[0] + '! I am the Plasthic Web assistant. How can I help you today?';
     }
 
-    function createLead(name, email, phone) {
-      var btn = document.getElementById('sr-lead-submit');
-      var errEl = document.getElementById('sr-lead-err');
-      btn.disabled = true;
-      btn.textContent = 'Starting…';
-      errEl.style.display = 'none';
-
-      postJSON(apiBase + '/v1/widget/lead', {
-        workspace_id: workspace,
-        session_id: sessionId,
-        name: name,
-        email: email,
-        phone: phone || null,
-        consent_given: true,
-      })
-        .then(function (res) {
-          leadId = res.lead_id;
-          hasShownGreeting = false;
-          leadFormEl.style.display = 'none';
-          inputRow.style.display = 'flex';
-          document.getElementById('sr-input').focus();
-        })
-        .catch(function (err) {
-          btn.disabled = false;
-          btn.textContent = 'Start Chat';
-          errEl.textContent = err.message || 'Could not start chat. Please try again.';
-          errEl.style.display = 'block';
-        });
-    }
-
     /* ── Message sending ───────────────────────────────────────────────── */
     function sendMessage(text) {
       if ((!text.trim() && !pendingAttachment) || isSending || isUploading || !leadId) return;
@@ -410,7 +413,7 @@
           hideTyping();
           if (isFirstTurn) {
             hasShownGreeting = true;
-            addMessage('bot', getGreetingFromScenario(document.getElementById('sr-name').value || 'there'));
+            addMessage('bot', getGreetingFromScenario('there'));
             return;
           }
           addMessage('bot', res.bot_reply || '(no reply)');
@@ -434,10 +437,9 @@
         bubble.innerHTML = SVG_CLOSE;
         badge.style.display = 'none';
         if (!leadId) {
-          document.getElementById('sr-name') && document.getElementById('sr-name').focus();
-        } else {
-          document.getElementById('sr-input') && document.getElementById('sr-input').focus();
+          autoCreateLead();
         }
+        document.getElementById('sr-input') && document.getElementById('sr-input').focus();
       } else {
         panel.classList.remove('sr-open');
         bubble.innerHTML = SVG_CHAT + badge.outerHTML;
@@ -449,15 +451,6 @@
       panel.classList.remove('sr-open');
       bubble.innerHTML = SVG_CHAT;
       bubble.appendChild(badge);
-    });
-
-    document.getElementById('sr-lead-submit').addEventListener('click', function () {
-      var name  = (document.getElementById('sr-name').value  || '').trim();
-      var email = (document.getElementById('sr-email').value || '').trim();
-      var phone = (document.getElementById('sr-phone').value || '').trim();
-      if (!name)  { alert('Please enter your name.'); return; }
-      if (!email) { alert('Please enter your email.'); return; }
-      createLead(name, email, phone);
     });
 
     var inputEl = document.getElementById('sr-input');
