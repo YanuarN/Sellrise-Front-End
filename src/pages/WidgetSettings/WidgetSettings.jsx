@@ -19,7 +19,6 @@ function WidgetSettings() {
     primaryColor: '#3b82f6',
     bubbleColor: '#3b82f6',
     bubbleIcon: '💬',
-    welcomeMessage: 'Hi! How can we help?',
     position: 'bottom-right',
     logoUrl: '',
     borderRadius: '16',
@@ -41,7 +40,22 @@ function WidgetSettings() {
     setDomainsLoading(true);
     try {
       const data = await domainService.getDomains();
-      setDomains(Array.isArray(data) ? data : data.items || data.data || []);
+      const list = Array.isArray(data) ? data : data.items || data.data || [];
+      setDomains(list);
+      // Hydrate branding from the first domain
+      const d = list[0];
+      if (d) {
+        setBrandingConfig((prev) => ({
+          ...prev,
+          primaryColor: d.brand_primary_color || prev.primaryColor,
+          bubbleColor:  d.bubble_color        || prev.bubbleColor,
+          bubbleIcon:   d.bubble_icon         || prev.bubbleIcon,
+          logoUrl:      d.brand_logo_url      || prev.logoUrl,
+          position:     d.position            || prev.position,
+          borderRadius: d.border_radius       || prev.borderRadius,
+          bubbleSize:   d.bubble_size         || prev.bubbleSize,
+        }));
+      }
     } catch {
       setDomains([]);
     } finally {
@@ -91,18 +105,16 @@ function WidgetSettings() {
     setIsSavingBranding(true);
     setBrandingSaveMsg(null);
     try {
-      const allDomains = domains.length ? domains : await domainService.getDomains();
-      if (!allDomains || allDomains.length === 0) {
+      if (!domains || domains.length === 0) {
         setBrandingSaveMsg({ type: 'warn', text: 'No domains registered yet. Add a domain in the Domains tab first.' });
         return;
       }
       await Promise.all(
-        allDomains.map((d) =>
+        domains.map((d) =>
           domainService.updateDomain(d.id, {
             brand_primary_color: branding.primaryColor,
             bubble_color: branding.bubbleColor,
             bubble_icon: branding.bubbleIcon,
-            welcome_message: branding.welcomeMessage,
             brand_logo_url: branding.logoUrl || null,
             position: branding.position,
             border_radius: branding.borderRadius,
