@@ -31,3 +31,4 @@ export { default as ScenarioToggleField } from './ScenarioToggleField';
 export { default as ScenarioEntryConditionEditor } from './ScenarioEntryConditionEditor';
 export { default as ScenarioPhraseListEditor } from './ScenarioPhraseListEditor';
 export { default as ScenarioCollapsibleHeader } from './ScenarioCollapsibleHeader';
+export { default as SpotlightOnboarding } from './SpotlightOnboarding';
