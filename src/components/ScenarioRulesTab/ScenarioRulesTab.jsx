@@ -60,7 +60,7 @@ export default function ScenarioRulesTab({ config, updateConfig }) {
         icon={Settings2}
         description="Define conversation behavior constraints."
       >
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4" data-onboarding="rules-toggles">
           <ScenarioToggleField
             label="One question per message"
             checked={rules.one_question_rule ?? true}
@@ -89,7 +89,7 @@ export default function ScenarioRulesTab({ config, updateConfig }) {
           </ScenarioField>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4" data-onboarding="rules-char-limits">
           <h4 className="text-sm font-medium text-slate-700 mb-2">Character Limits</h4>
           <div className="grid grid-cols-3 gap-3">
             {['default', 'outbound', 'followup'].map((key) => (
@@ -109,7 +109,7 @@ export default function ScenarioRulesTab({ config, updateConfig }) {
           </div>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4" data-onboarding="rules-forbidden">
           <ScenarioField label="Forbidden phrases (comma-separated)">
             <ScenarioCommaSeparatedInput
               value={Array.isArray(rules.forbid) ? rules.forbid.join(', ') : ''}

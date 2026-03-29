@@ -269,6 +269,7 @@ export default function Scenarios() {
       <SpotlightOnboarding
         steps={ONBOARDING_STEPS}
         storageKey="scenarios_onboarding_seen"
+        showHint
       />
     </div>
   );

@@ -55,6 +55,7 @@ export default function ScenarioFollowupsTab({ config, updateConfig }) {
         title="Follow-up Sequences"
         icon={Clock}
         description="Define timed follow-up messages when leads go silent."
+        data-onboarding="followups-section"
         action={
           <button
             onClick={addSequence}

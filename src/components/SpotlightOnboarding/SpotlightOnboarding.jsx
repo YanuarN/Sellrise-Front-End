@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ArrowRight, ArrowLeft } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, HelpCircle } from 'lucide-react';
 
 /**
  * SpotlightOnboarding – step-by-step guided tour overlay.
@@ -10,12 +10,28 @@ import { X, ArrowRight, ArrowLeft } from 'lucide-react';
  *                Each step uses `target` to find `[data-onboarding="<target>"]` in the DOM.
  *  - storageKey  {string}  localStorage key to remember completion (default: 'onboarding_done').
  *  - onComplete  {Function} Called when the user finishes or skips the tour.
+ *  - showHint    {boolean}  If true, renders a floating "?" button to replay the tour.
+ *
+ * Ref API:
+ *  - ref.current.restart()  – programmatically replay the tour.
  */
-export default function SpotlightOnboarding({ steps, storageKey = 'onboarding_done', onComplete }) {
+const SpotlightOnboarding = forwardRef(function SpotlightOnboarding(
+  { steps, storageKey = 'onboarding_done', onComplete, showHint = false },
+  ref,
+) {
   const [active, setActive] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
   const [rect, setRect] = useState(null);
   const [fadeIn, setFadeIn] = useState(false);
+
+  /* ── Imperative restart ───────────────────────────────── */
+  const restart = useCallback(() => {
+    setStepIdx(0);
+    setActive(true);
+    requestAnimationFrame(() => setFadeIn(true));
+  }, []);
+
+  useImperativeHandle(ref, () => ({ restart }), [restart]);
 
   /* ── Boot ─────────────────────────────────────────────── */
   useEffect(() => {
@@ -86,7 +102,20 @@ export default function SpotlightOnboarding({ steps, storageKey = 'onboarding_do
     if (p >= 0) setStepIdx(p);
   };
 
-  if (!active) return null;
+  if (!active && !showHint) return null;
+  if (!active && showHint) {
+    return createPortal(
+      <button
+        onClick={restart}
+        className="fixed bottom-6 right-6 z-[9999] group flex items-center gap-2 bg-white text-blue-600 border border-blue-200 shadow-lg shadow-blue-500/10 rounded-full pl-3 pr-4 py-2.5 hover:bg-blue-50 hover:border-blue-300 hover:shadow-xl transition-all duration-200"
+        aria-label="Show guided tour"
+      >
+        <HelpCircle className="w-4.5 h-4.5" />
+        <span className="text-xs font-semibold">Tour</span>
+      </button>,
+      document.body,
+    );
+  }
 
   /* ── Computed layout values ───────────────────────────── */
   const pad = 10;
@@ -125,7 +154,7 @@ export default function SpotlightOnboarding({ steps, storageKey = 'onboarding_do
     return { top: Math.max(16, spot.y), left: Math.max(16, spot.x - gap - tw) };
   };
 
-  return createPortal(
+  const overlay = createPortal(
     <div
       className="fixed inset-0"
       style={{
@@ -264,4 +293,8 @@ export default function SpotlightOnboarding({ steps, storageKey = 'onboarding_do
     </div>,
     document.body,
   );
-}
+
+  return overlay;
+});
+
+export default SpotlightOnboarding;

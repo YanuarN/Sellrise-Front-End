@@ -4,9 +4,10 @@ export default function ScenarioSectionCard({
   description,
   action,
   children,
+  ...rest
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm" {...rest}>
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
           {Icon && (
