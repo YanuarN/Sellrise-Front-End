@@ -51,6 +51,46 @@ const INTRO_ONBOARDING_STEPS = [
   },
 ];
 
+// ─── Shared button steps appended to every tab tour ───────────────────────────
+const BUTTON_STEPS = [
+  {
+    target: 'btn-generate',
+    title: 'Generate with AI',
+    description:
+      'Describe what you need and AI builds the whole scenario for you. Great when starting from scratch.',
+  },
+  {
+    target: 'btn-enhance',
+    title: 'Enhance Config',
+    description:
+      'AI reviews your current setup and suggests improvements — better prompts, tighter rules, cleaner structure.',
+  },
+  {
+    target: 'btn-simulate',
+    title: 'Test It Out',
+    description:
+      'Opens a preview chat so you can talk to your bot and see exactly how it responds before going live.',
+  },
+  {
+    target: 'btn-save',
+    title: 'Save Your Work',
+    description:
+      'Saves everything as a draft. Nothing goes live until you publish. Hit this often!',
+  },
+  {
+    target: 'btn-delete',
+    title: 'Delete Scenario',
+    description:
+      'Permanently removes this scenario. Cannot be undone, so make sure you really want to!',
+  },
+  {
+    target: 'btn-publish',
+    title: 'Go Live!',
+    description:
+      'Publishes your scenario so the widget starts using it with real visitors. Make sure to save first.',
+  },
+];
+
 // ─── Onboarding: per-tab tours (shown once per tab) ───────────────────────────
 const TAB_ONBOARDING = {
   general: [
@@ -69,6 +109,7 @@ const TAB_ONBOARDING = {
       title: 'Version Number',
       description: 'Bump this whenever you make a big change. It helps you keep track of updates.',
     },
+    ...BUTTON_STEPS,
   ],
   rules: [
     {
@@ -86,6 +127,7 @@ const TAB_ONBOARDING = {
       title: 'Words to Avoid',
       description: 'List any words or phrases the bot should never say. Separate them with commas.',
     },
+    ...BUTTON_STEPS,
   ],
   slots: [
     {
@@ -93,6 +135,7 @@ const TAB_ONBOARDING = {
       title: 'Data You Want to Collect',
       description: 'Each slot is a piece of info from the visitor — name, email, industry, etc. Hit "Add Slot" to create one, pick a type, and mark it required if you must have it.',
     },
+    ...BUTTON_STEPS,
   ],
   actions: [
     {
@@ -100,6 +143,7 @@ const TAB_ONBOARDING = {
       title: 'What Can the Bot Do?',
       description: 'Actions are things that happen behind the scenes: hand off to a human, send products, book meetings. Click "Add Action" to set one up.',
     },
+    ...BUTTON_STEPS,
   ],
   stages: [
     {
@@ -107,6 +151,7 @@ const TAB_ONBOARDING = {
       title: 'Build the Conversation Step-by-Step',
       description: 'Stages define the order of your chat. Each stage has tasks inside it. Higher priority = runs first. Click a stage to expand it and add tasks.',
     },
+    ...BUTTON_STEPS,
   ],
   prompts: [
     {
@@ -114,6 +159,7 @@ const TAB_ONBOARDING = {
       title: 'Tell the AI How to Talk',
       description: 'Prompts are instructions for the AI tone and personality. Pick a template to get started, or write your own. You can also hit "Enhance" to let AI improve it.',
     },
+    ...BUTTON_STEPS,
   ],
   llm_config: [
     {
@@ -126,6 +172,7 @@ const TAB_ONBOARDING = {
       title: 'Knowledge Base Mode',
       description: 'Turn this on if you only want the bot to answer from your uploaded documents — no guessing!',
     },
+    ...BUTTON_STEPS,
   ],
   followups: [
     {
@@ -133,6 +180,7 @@ const TAB_ONBOARDING = {
       title: 'Auto-Follow-Up Messages',
       description: 'If the visitor stops replying, these messages go out after a delay you set. Click "Add Sequence" to create a chain of reminders.',
     },
+    ...BUTTON_STEPS,
   ],
   json: [
     {
@@ -145,6 +193,7 @@ const TAB_ONBOARDING = {
       title: 'Raw JSON',
       description: 'This is the full configuration as code. Power users can edit it directly. Click "Format" to tidy it up.',
     },
+    ...BUTTON_STEPS,
   ],
 };
 
@@ -238,6 +287,7 @@ export default function ScenarioConfiguration() {
           </div>
 
           <div className="flex items-center gap-2" data-onboarding="editor-actions">
+            <div data-onboarding="btn-generate">
             <Button
               variant="outline"
               className="gap-1.5 text-xs border-violet-200 text-violet-600 hover:bg-violet-50"
@@ -246,7 +296,9 @@ export default function ScenarioConfiguration() {
               <Wand2 className="w-3.5 h-3.5" />
               Generate with AI
             </Button>
+            </div>
 
+            <div data-onboarding="btn-enhance">
             <Button
               variant="outline"
               className="gap-1.5 text-xs border-blue-200 text-blue-600 hover:bg-blue-50"
@@ -256,8 +308,10 @@ export default function ScenarioConfiguration() {
               {h.enhancing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
               Enhance Config
             </Button>
+            </div>
 
             {h.scenarioId && (
+              <div data-onboarding="btn-simulate">
               <Button
                 variant="outline"
                 className="gap-1.5 text-xs"
@@ -266,8 +320,10 @@ export default function ScenarioConfiguration() {
                 <Play className="w-3.5 h-3.5" />
                 Simulate
               </Button>
+              </div>
             )}
 
+            <div data-onboarding="btn-save">
             <Button
               className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5 text-xs shadow-lg shadow-blue-500/20"
               onClick={h.handleSave}
@@ -276,8 +332,10 @@ export default function ScenarioConfiguration() {
               {h.saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               Save Draft
             </Button>
+            </div>
 
             {h.scenarioId && h.isAdmin && (
+              <div data-onboarding="btn-delete">
               <Button
                 variant="outline"
                 className="gap-1.5 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
@@ -292,9 +350,11 @@ export default function ScenarioConfiguration() {
                 {h.deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 Delete
               </Button>
+              </div>
             )}
 
             {h.scenarioId && h.isAdmin && (
+              <div data-onboarding="btn-publish">
               <Button
                 className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white gap-1.5 text-xs shadow-lg shadow-emerald-500/20"
                 onClick={h.handlePublish}
@@ -303,6 +363,7 @@ export default function ScenarioConfiguration() {
                 {h.publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 Publish
               </Button>
+              </div>
             )}
           </div>
         </div>
