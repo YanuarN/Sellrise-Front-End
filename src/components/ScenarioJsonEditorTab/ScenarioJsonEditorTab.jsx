@@ -19,6 +19,7 @@ export default function ScenarioJsonEditorTab({
         title="AI Config Editor"
         icon={BrainCircuit}
         description="Describe changes in natural language — AI will edit the config for you."
+        data-onboarding="json-ai-editor"
       >
         <div className="flex gap-2">
           <textarea
@@ -44,6 +45,7 @@ export default function ScenarioJsonEditorTab({
       <ScenarioSectionCard
         title="JSON Configuration"
         icon={Code2}
+        data-onboarding="json-raw-editor"
         action={
           <div className="flex items-center gap-2">
             {jsonError && (

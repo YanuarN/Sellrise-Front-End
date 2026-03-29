@@ -86,6 +86,7 @@ export default function ScenarioStagesTab({ config, updateConfig }) {
         title="Conversation Stages"
         icon={Layers}
         description="Define stages and tasks that guide the conversation flow. Higher priority stages are evaluated first."
+        data-onboarding="stages-section"
         action={
           <button
             onClick={addStage}

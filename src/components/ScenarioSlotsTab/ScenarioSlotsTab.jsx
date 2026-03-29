@@ -49,6 +49,7 @@ export default function ScenarioSlotsTab({ config, updateConfig }) {
         title="Slots Schema"
         icon={ListChecks}
         description="Define data fields to collect from leads during conversation."
+        data-onboarding="slots-section"
         action={
           <button
             onClick={addSlot}

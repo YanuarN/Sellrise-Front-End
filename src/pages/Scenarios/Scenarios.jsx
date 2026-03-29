@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Loader2, X } from 'lucide-react';
-import { Button, Input, PageHeader, ScenarioCard, ScenarioSimulator } from '../../components';
+import { Button, Input, PageHeader, ScenarioCard, ScenarioSimulator, SpotlightOnboarding } from '../../components';
 import { scenarioService } from '../../services';
 import useAuthStore from '../../stores/authStore';
 
@@ -17,6 +17,33 @@ export default function Scenarios() {
   const [simulatingScenario, setSimulatingScenario] = useState(null);
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'admin';
+
+  const ONBOARDING_STEPS = [
+    {
+      target: 'page-header',
+      title: 'Welcome to Scenarios! 👋',
+      description:
+        "This is where you build and manage chatbot conversations. Let's take a quick look around — it only takes a moment!",
+    },
+    {
+      target: 'search-scenarios',
+      title: 'Find Any Scenario',
+      description:
+        'Looking for a specific scenario? Just type its name here and the list filters right away.',
+    },
+    {
+      target: 'new-scenario-btn',
+      title: 'Build Something New',
+      description:
+        "Hit this button to create a new chatbot flow. Just pick a name and you're good to go — you can set up everything else later.",
+    },
+    {
+      target: 'scenario-card',
+      title: 'Here Are Your Scenarios',
+      description:
+        'Each card is one chatbot flow. You can see if it\'s live or still a draft. Click \"Edit\" to change it, or \"Simulate\" to test it before going live.',
+    },
+  ];
 
   const fetchScenarios = async () => {
     setLoading(true);
@@ -100,31 +127,37 @@ export default function Scenarios() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50 rounded-2xl overflow-hidden p-6">
-      <PageHeader
-        title={<span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">Scenarios Engine</span>}
-        description="Design and publish automated flows for your web widget. These deterministic scenarios define how your chatbots interact with visitors."
-        className="mb-8"
-        actions={
-          <>
-            <Input
-              icon={Search}
-              placeholder="Search scenarios..."
-              className="w-64"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {isAdmin && (
-              <Button
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/20 shrink-0 gap-2"
-                onClick={() => { setFormData({ name: '', description: '', config: '' }); setConfigError(null); setShowCreateModal(true); }}
-              >
-                <Plus className="w-4 h-4" />
-                New Scenario
-              </Button>
-            )}
-          </>
-        }
-      />
+      <div data-onboarding="page-header">
+        <PageHeader
+          title={<span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">Scenarios Engine</span>}
+          description="Design and publish automated flows for your web widget. These deterministic scenarios define how your chatbots interact with visitors."
+          className="mb-8"
+          actions={
+            <>
+              <div data-onboarding="search-scenarios">
+                <Input
+                  icon={Search}
+                  placeholder="Search scenarios..."
+                  className="w-64"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              {isAdmin && (
+                <div data-onboarding="new-scenario-btn">
+                  <Button
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/20 shrink-0 gap-2"
+                    onClick={() => { setFormData({ name: '', description: '', config: '' }); setConfigError(null); setShowCreateModal(true); }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    New Scenario
+                  </Button>
+                </div>
+              )}
+            </>
+          }
+        />
+      </div>
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
@@ -137,16 +170,17 @@ export default function Scenarios() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredScenarios.map((scenario) => (
-            <ScenarioCard
-              key={scenario.id}
-              title={scenario.name}
-              description={scenario.description || 'No description'}
-              status={scenario.is_published ? `Published (v${scenario.version || 1})` : `Draft (v${scenario.version || 1})`}
-              lastModified={formatDate(scenario.updated_at)}
-              onEdit={isAdmin ? () => handleEdit(scenario) : undefined}
-              onSimulate={() => handleSimulate(scenario)}
-            />
+          {filteredScenarios.map((scenario, index) => (
+            <div key={scenario.id} {...(index === 0 ? { 'data-onboarding': 'scenario-card' } : {})}>
+              <ScenarioCard
+                title={scenario.name}
+                description={scenario.description || 'No description'}
+                status={scenario.is_published ? `Published (v${scenario.version || 1})` : `Draft (v${scenario.version || 1})`}
+                lastModified={formatDate(scenario.updated_at)}
+                onEdit={isAdmin ? () => handleEdit(scenario) : undefined}
+                onSimulate={() => handleSimulate(scenario)}
+              />
+            </div>
           ))}
         </div>
       )}
@@ -230,6 +264,13 @@ export default function Scenarios() {
           onClose={() => setSimulatingScenario(null)}
         />
       )}
+
+      {/* Guided Tour */}
+      <SpotlightOnboarding
+        steps={ONBOARDING_STEPS}
+        storageKey="scenarios_onboarding_seen"
+        showHint
+      />
     </div>
   );
 }

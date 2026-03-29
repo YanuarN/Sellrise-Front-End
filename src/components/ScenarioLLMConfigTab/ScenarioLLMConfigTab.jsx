@@ -24,6 +24,7 @@ export default function ScenarioLLMConfigTab({ config, updateConfig }) {
         icon={BrainCircuit}
         description="Configure the AI model settings for this scenario."
       >
+        <div data-onboarding="llm-model-settings">
         <div className="grid grid-cols-2 gap-4">
           <ScenarioField label="Model">
             <div className="space-y-2">
@@ -66,9 +67,11 @@ export default function ScenarioLLMConfigTab({ config, updateConfig }) {
             />
           </ScenarioField>
         </div>
+        </div>
       </ScenarioSectionCard>
 
       <ScenarioSectionCard title="Settings" icon={Settings2}>
+        <div data-onboarding="llm-kb-setting">
         <ScenarioToggleField
           label="KB Only Strict Mode"
           description="Only answer from knowledge base content"
@@ -81,6 +84,7 @@ export default function ScenarioLLMConfigTab({ config, updateConfig }) {
             })
           }
         />
+        </div>
       </ScenarioSectionCard>
     </div>
   );

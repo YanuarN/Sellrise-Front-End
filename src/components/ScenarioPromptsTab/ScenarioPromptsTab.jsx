@@ -51,6 +51,7 @@ export default function ScenarioPromptsTab({
         title="System Prompts"
         icon={MessageSquare}
         description="Configure prompts that guide AI behavior in different conversation phases."
+        data-onboarding="prompts-section"
         action={
           <div className="flex items-center gap-2">
             <select

@@ -49,6 +49,7 @@ export default function ScenarioActionsTab({ config, updateConfig }) {
         title="Actions Catalog"
         icon={Zap}
         description="Define backend actions that can be triggered by the conversation."
+        data-onboarding="actions-section"
         action={
           <button
             onClick={addAction}
