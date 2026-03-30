@@ -125,19 +125,24 @@
     '.sr-status-msg { font-size: 12px; color: #6b7280; text-align: center; padding: 4px; }',
     '#sr-preview-row {',
     '  padding: 8px 12px; background: #f9fafb; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb;',
-    '  display: none; align-items: center; gap: 8px;',
+    '  display: none; flex-direction: column; gap: 8px;',
     '}',
-    '.sr-preview-thumb {',
-    '  width: 40px; height: 40px; border-radius: 6px; object-cover; border: 1px solid #d1d5db; background: #fff;',
+    '.sr-preview-summary { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; }',
+    '.sr-preview-summary strong { font-size: 11px; color: #374151; }',
+    '.sr-preview-summary span { font-size: 10px; color: #6b7280; }',
+    '.sr-preview-list { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; width:100%; }',
+    '.sr-preview-item { position:relative; overflow:hidden; border-radius:8px; border:1px solid #d1d5db; background:#fff; }',
+    '.sr-preview-thumb { width:100%; height:64px; object-fit:cover; display:block; background: #fff; }',
+    '.sr-preview-remove-item {',
+    '  position:absolute; top:4px; right:4px; background:rgba(17,24,39,.72); border:none; border-radius:999px; width:20px; height:20px;',
+    '  display:flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; font-size:12px;',
     '}',
-    '.sr-preview-info { flex: 1; min-width: 0; }',
-    '.sr-preview-info div { font-size: 11px; font-weight: 600; color: #374151; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
-    '.sr-preview-info span { font-size: 10px; color: #6b7280; }',
-    '#sr-preview-remove {',
+    '.sr-preview-remove-item:hover { background: rgba(17,24,39,.9); }',
+    '#sr-preview-clear {',
     '  background: #e5e7eb; border: none; border-radius: 50%; width: 22px; height: 22px;',
     '  display: flex; align-items: center; justify-content: center; cursor: pointer; color: #4b5563;',
     '}',
-    '#sr-preview-remove:hover { background: #d1d5db; color: #111827; }',
+    '#sr-preview-clear:hover { background: #d1d5db; color: #111827; }',
   ].join('\n');
 
   /* ── Helpers ─────────────────────────────────────────────────────────── */
@@ -193,7 +198,7 @@
     var leadId    = null;
     var isSending = false;
     var isUploading = false;
-    var pendingAttachment = null;
+    var pendingAttachments = [];
     var hasShownGreeting = false;
 
     /* ── DOM ───────────────────────────────────────────────────────────── */
@@ -240,16 +245,13 @@
 
     /* Preview row */
     var previewRow = el('div', { id: 'sr-preview-row' });
-    previewRow.innerHTML =
-      '<img class="sr-preview-thumb" id="sr-preview-img" src="" alt="Preview" />' +
-      '<div class="sr-preview-info"><div>Photo attached</div><span>Ready to send</span></div>' +
-      '<button id="sr-preview-remove" title="Remove">&times;</button>';
+    previewRow.innerHTML = '';
 
     /* Input row */
     var inputRow = el('div', { id: 'sr-input-row' });
     inputRow.innerHTML =
       '<button id="sr-attach" aria-label="Attach photo" type="button">' + SVG_ATTACH + '</button>' +
-      '<input type="file" id="sr-file-input" accept="image/jpeg, image/png, image/webp" style="display:none" />' +
+      '<input type="file" id="sr-file-input" accept="image/jpeg, image/png, image/webp" multiple style="display:none" />' +
       '<textarea id="sr-input" rows="1" placeholder="Type a message…"></textarea>' +
       '<button id="sr-send" aria-label="Send">' + SVG_SEND + '</button>';
 
@@ -264,12 +266,61 @@
     document.body.appendChild(container);
 
     /* ── Interaction helpers ───────────────────────────────────────────── */
-    function addMessage(role, text, attachmentUrl) {
+    function normalizeUploadedFiles(response) {
+      if (response && Array.isArray(response.files)) return response.files;
+      if (response && response.url) return [response];
+      return [];
+    }
+
+    function resolveAttachmentUrl(url) {
+      var host = apiBase === '/' ? '' : apiBase;
+      return url && url.charAt(0) === '/' ? host + url : (url || '');
+    }
+
+    function updateInputPlaceholder() {
+      var input = document.getElementById('sr-input');
+      if (!input) return;
+      input.placeholder = pendingAttachments.length
+        ? 'Add a note... (' + pendingAttachments.length + '/3 photos attached)'
+        : 'Type a message…';
+    }
+
+    function renderPendingAttachments() {
+      if (!pendingAttachments.length) {
+        previewRow.style.display = 'none';
+        previewRow.innerHTML = '';
+        updateInputPlaceholder();
+        return;
+      }
+
+      var itemsHtml = pendingAttachments.map(function (attachmentUrl, index) {
+        return '' +
+          '<div class="sr-preview-item">' +
+            '<img class="sr-preview-thumb" src="' + escHtml(resolveAttachmentUrl(attachmentUrl)) + '" alt="Preview ' + (index + 1) + '" />' +
+            '<button class="sr-preview-remove-item" data-index="' + index + '" title="Remove">&times;</button>' +
+          '</div>';
+      }).join('');
+
+      previewRow.innerHTML = '' +
+        '<div class="sr-preview-summary">' +
+          '<div><strong>' + pendingAttachments.length + ' photo' + (pendingAttachments.length === 1 ? '' : 's') + ' attached</strong><br/><span>Ready to send</span></div>' +
+          '<button id="sr-preview-clear" title="Remove all">&times;</button>' +
+        '</div>' +
+        '<div class="sr-preview-list">' + itemsHtml + '</div>';
+      previewRow.style.display = 'flex';
+      updateInputPlaceholder();
+    }
+
+    function addMessage(role, text, attachmentUrls) {
       var msg = el('div', { class: 'sr-msg ' + role });
       var parts = [];
-      if (attachmentUrl) {
-        var host = apiBase === '/' ? '' : apiBase;
-        parts.push('<img src="' + host + attachmentUrl + '" alt="Attachment" />');
+      var images = Array.isArray(attachmentUrls)
+        ? attachmentUrls
+        : (attachmentUrls ? [attachmentUrls] : []);
+      if (images.length) {
+        for (var imageIndex = 0; imageIndex < images.length; imageIndex += 1) {
+          parts.push('<img src="' + escHtml(resolveAttachmentUrl(images[imageIndex])) + '" alt="Attachment" />');
+        }
       }
       if (text) {
         parts.push('<div class="sr-bubble-msg">' + escHtml(text) + '</div>');
@@ -382,16 +433,15 @@
 
     /* ── Message sending ───────────────────────────────────────────────── */
     function sendMessage(text) {
-      if ((!text.trim() && !pendingAttachment) || isSending || isUploading || !leadId) return;
+      if ((!text.trim() && !pendingAttachments.length) || isSending || isUploading || !leadId) return;
       isSending = true;
       var isFirstTurn = !hasShownGreeting;
-      var curAttachment = pendingAttachment;
+      var curAttachments = pendingAttachments.slice();
       var normalizedText = text.trim();
-      pendingAttachment = null;
-      document.getElementById('sr-preview-row').style.display = 'none';
-      document.getElementById('sr-input').placeholder = "Type a message…";
+      pendingAttachments = [];
+      renderPendingAttachments();
 
-      addMessage('user', text, curAttachment);
+      addMessage('user', text, curAttachments);
       document.getElementById('sr-input').value = '';
       autoResize(document.getElementById('sr-input'));
       document.getElementById('sr-send').disabled = true;
@@ -404,8 +454,8 @@
         channel: 'web',
         session_id: sessionId,
       };
-      if (curAttachment) {
-        payload.attachments = [curAttachment];
+      if (curAttachments.length) {
+        payload.attachments = curAttachments;
       }
 
       postJSON(apiBase + '/v1/widget/message', payload)
@@ -463,10 +513,23 @@
       sendMessage(inputEl.value);
     });
 
-    document.getElementById('sr-preview-remove').addEventListener('click', function () {
-      pendingAttachment = null;
-      document.getElementById('sr-preview-row').style.display = 'none';
-      document.getElementById('sr-input').placeholder = "Type a message…";
+    previewRow.addEventListener('click', function (event) {
+      var clearAllButton = event.target.closest('#sr-preview-clear');
+      if (clearAllButton) {
+        pendingAttachments = [];
+        renderPendingAttachments();
+        return;
+      }
+
+      var removeButton = event.target.closest('.sr-preview-remove-item');
+      if (!removeButton) return;
+
+      var index = Number(removeButton.getAttribute('data-index'));
+      if (isNaN(index)) return;
+      pendingAttachments = pendingAttachments.filter(function (_, itemIndex) {
+        return itemIndex !== index;
+      });
+      renderPendingAttachments();
     });
 
     /* ── Attachment handling ───────────────────────────────────────────── */
@@ -474,9 +537,26 @@
     var attachBtn = document.getElementById('sr-attach');
     attachBtn.addEventListener('click', function () { fileInputEl.click(); });
     fileInputEl.addEventListener('change', function (e) {
-      if (!e.target.files.length) return;
-      var file = e.target.files[0];
-      if (file.size > 10 * 1024 * 1024) { alert('File too large (max 10MB)'); return; }
+      var selectedFiles = Array.prototype.slice.call(e.target.files || []);
+      if (!selectedFiles.length) return;
+      if (pendingAttachments.length + selectedFiles.length > 3) {
+        alert('You can attach up to 3 photos per message');
+        fileInputEl.value = '';
+        return;
+      }
+
+      var oversizedFile = null;
+      for (var fileIndex = 0; fileIndex < selectedFiles.length; fileIndex += 1) {
+        if (selectedFiles[fileIndex].size > 10 * 1024 * 1024) {
+          oversizedFile = selectedFiles[fileIndex];
+          break;
+        }
+      }
+      if (oversizedFile) {
+        alert('File too large (max 10MB): ' + oversizedFile.name);
+        fileInputEl.value = '';
+        return;
+      }
       
       var origHtml = attachBtn.innerHTML;
       attachBtn.innerHTML = '...';
@@ -484,7 +564,9 @@
       isUploading = true;
 
       var fd = new FormData();
-      fd.append('file', file);
+      for (var uploadIndex = 0; uploadIndex < selectedFiles.length; uploadIndex += 1) {
+        fd.append('file', selectedFiles[uploadIndex]);
+      }
       fd.append('workspace_id', workspace);
 
       var host = apiBase === '/' ? '' : apiBase;
@@ -496,12 +578,12 @@
         return r.json(); 
       })
       .then(function(data) {
-          if(data.url) {
-            pendingAttachment = data.url;
-            var host = apiBase === '/' ? '' : apiBase;
-            document.getElementById('sr-preview-img').src = host + data.url;
-            document.getElementById('sr-preview-row').style.display = 'flex';
-            document.getElementById('sr-input').placeholder = "Add a note...";
+          var uploadedFiles = normalizeUploadedFiles(data);
+          if (uploadedFiles.length) {
+            pendingAttachments = pendingAttachments.concat(
+              uploadedFiles.map(function (item) { return item.url; }).filter(Boolean)
+            ).slice(0, 3);
+            renderPendingAttachments();
           }
       }).catch(function(e) { 
          alert('Upload failed: ' + e.message);
@@ -512,6 +594,8 @@
          fileInputEl.value = '';
       });
     });
+
+    updateInputPlaceholder();
   }
 
   /* ── Utility: auto-grow textarea ─────────────────────────────────────── */

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, SlidersHorizontal, Loader2, ArrowUpRight, GripVertical, X } from 'lucide-react';
-import { Button, Input, PageHeader } from '../../components';
+import { Button, Input, LeadAttachmentsPanel, PageHeader } from '../../components';
 import { leadService } from '../../services';
 
 const PIPELINE_STAGES = [
@@ -314,6 +314,8 @@ export default function LeadManagement() {
                     ))}
                   </div>
                 </div>
+
+                <LeadAttachmentsPanel leadId={selectedLead.id} />
 
                 {selectedLead.utm_source && (
                   <div className="bg-slate-50 rounded-xl p-3">

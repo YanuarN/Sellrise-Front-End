@@ -4,7 +4,7 @@ import {
     User, Mail, Phone, Tag, Clock, Flame, Thermometer, Snowflake,
     UserCheck, ArrowRightLeft, StickyNote, Loader2, RefreshCw,
 } from 'lucide-react';
-import { Button, Input, Badge, PageHeader } from '../../components';
+import { Button, Input, Badge, LeadAttachmentsPanel, PageHeader } from '../../components';
 import leadService from '../../services/leadService';
 import { API_BASE_URL } from '../../services/api';
 import useAuthStore from '../../stores/authStore';
@@ -291,6 +291,10 @@ function LeadDetailPanel({ lead, onUpdated }) {
                         ))}
                     </select>
                 </div>
+            </div>
+
+            <div className="px-4 py-4 border-b border-slate-100 bg-white">
+                <LeadAttachmentsPanel leadId={detail.id} />
             </div>
 
             {/* Transcript */}

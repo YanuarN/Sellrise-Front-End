@@ -21,12 +21,20 @@ const leadService = {
     return api.get(`/v1/leads/${leadId}`).then((r) => r.events ?? []);
   },
 
+  async getLeadAttachments(leadId) {
+    return api.get(`/v1/leads/${leadId}/attachments`);
+  },
+
   async updateLead(leadId, data) {
     return api.patch(`/v1/leads/${leadId}`, data);
   },
 
   async addNote(leadId, body) {
     return api.post(`/v1/leads/${leadId}/notes`, { body });
+  },
+
+  async deleteLeadAttachment(leadId, attachmentId) {
+    return api.delete(`/v1/leads/${leadId}/attachments/${attachmentId}`);
   },
 };
 

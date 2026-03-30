@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Users, Filter, Download, ArrowUpRight, Search, Loader2, ChevronDown, X, UserPlus } from 'lucide-react';
-import { Button, Input } from '../../components';
+import { Button, Input, LeadAttachmentsPanel } from '../../components';
 import { leadService } from '../../services';
 import useAuthStore from '../../stores/authStore';
 
@@ -484,6 +484,8 @@ export default function Leads() {
                     </div>
                   </div>
                 )}
+
+                <LeadAttachmentsPanel leadId={selectedLead.id} />
 
                 {/* Notes */}
                 <div>
