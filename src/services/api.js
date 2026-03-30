@@ -315,9 +315,10 @@ class ApiClient {
   /**
    * File Upload API
    */
-  async uploadFile(file, type = 'attachment') {
+  async uploadFile(fileOrFiles, type = 'attachment') {
     const formData = new FormData();
-    formData.append('file', file);
+    const files = Array.isArray(fileOrFiles) ? fileOrFiles : [fileOrFiles];
+    files.filter(Boolean).forEach((file) => formData.append('file', file));
     formData.append('type', type);
 
     const buildHeaders = () => {
