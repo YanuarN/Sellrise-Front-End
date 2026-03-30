@@ -4,6 +4,8 @@ import { Button } from '../Button';
 import api, { API_BASE_URL } from '../../services/api';
 import { domainService, scenarioService, workspaceService } from '../../services';
 
+const MAX_ATTACHMENTS = 3;
+
 function pickDisplayName(...candidates) {
   return candidates.find((value) => typeof value === 'string' && value.trim())?.trim() || 'Plasthic';
 }
@@ -22,6 +24,22 @@ function applyScenarioVariables(text, visitorName, brandName) {
 
 function sortByPriorityDesc(items) {
   return (Array.isArray(items) ? items : []).slice().sort((a, b) => (b?.priority || 0) - (a?.priority || 0));
+}
+
+function normalizeUploadedFiles(response) {
+  if (Array.isArray(response?.files)) {
+    return response.files;
+  }
+
+  if (response?.url) {
+    return [response];
+  }
+
+  return [];
+}
+
+function resolveAttachmentUrl(url) {
+  return url?.startsWith('/') ? `${API_BASE_URL}${url}` : url || '';
 }
 
 
@@ -95,7 +113,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
   const [initError, setInitError] = useState(null);
   const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [pendingAttachment, setPendingAttachment] = useState(null);
+  const [pendingAttachments, setPendingAttachments] = useState([]);
   const [isFallbackMode, setIsFallbackMode] = useState(false);
   const endRef = useRef(null);
   const inputRef = useRef(null);
@@ -224,24 +242,34 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
   };
 
   const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const selectedFiles = Array.from(e.target.files || []);
+    if (!selectedFiles.length) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      alert('File too large (max 10MB)');
+    if (pendingAttachments.length + selectedFiles.length > MAX_ATTACHMENTS) {
+      alert(`You can attach up to ${MAX_ATTACHMENTS} photos per message`);
+      return;
+    }
+
+    const oversizedFile = selectedFiles.find((file) => file.size > 10 * 1024 * 1024);
+    if (oversizedFile) {
+      alert(`File too large (max 10MB): ${oversizedFile.name}`);
       return;
     }
 
     setIsUploading(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      selectedFiles.forEach((file) => formData.append('file', file));
       formData.append('workspace_id', workspaceId);
 
       const res = await api.widget.upload(formData);
-      
-      if (res?.url) {
-        setPendingAttachment(res.url);
+      const uploadedFiles = normalizeUploadedFiles(res);
+
+      if (uploadedFiles.length) {
+        setPendingAttachments((current) => [
+          ...current,
+          ...uploadedFiles.map((item) => item.url).filter(Boolean),
+        ].slice(0, MAX_ATTACHMENTS));
       }
     } catch (err) {
       alert(`Upload failed: ${err.message}`);
@@ -255,17 +283,17 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     if (event) event.preventDefault();
 
     const trimmed = input.trim();
-    if ((!trimmed && !pendingAttachment) || isFallbackMode || isSending || isUploading || !leadId) return;
+    if ((!trimmed && !pendingAttachments.length) || isFallbackMode || isSending || isUploading || !leadId) return;
     const isFirstTurn = !messages.some((message) => message.role === 'user');
 
-    const curAttachment = pendingAttachment;
-    setPendingAttachment(null);
+    const curAttachments = pendingAttachments;
+    setPendingAttachments([]);
     setInput('');
     setIsSending(true);
 
     setMessages((prev) => [
       ...prev,
-      { id: Date.now(), role: 'user', content: trimmed, attachmentUrl: curAttachment },
+      { id: Date.now(), role: 'user', content: trimmed, attachmentUrls: curAttachments },
     ]);
 
     try {
@@ -276,8 +304,8 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
         channel: 'web',
         session_id: sessionId,
       };
-      if (curAttachment) {
-        payload.attachments = [curAttachment];
+      if (curAttachments.length) {
+        payload.attachments = curAttachments;
       }
       const res = await api.widget.sendMessage(payload);
       pushBotMessage((isFirstTurn && initialGreeting) || res.bot_reply || '[No response]');
@@ -299,6 +327,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
   const handleReset = async () => {
     setMessages([]);
     setInput('');
+    setPendingAttachments([]);
     setIsFallbackMode(false);
     setIsSending(false);
     setLeadId(null);
@@ -422,12 +451,17 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
                     : 'rounded-tl-sm bg-gray-100 text-gray-800'
                 }`}
               >
-                {message.attachmentUrl && (
-                  <img
-                    src={message.attachmentUrl.startsWith('/') ? `${API_BASE_URL}${message.attachmentUrl}` : message.attachmentUrl}
-                    alt="Attachment"
-                    className="mb-2 max-w-full rounded-lg border border-white/20"
-                  />
+                {Array.isArray(message.attachmentUrls) && message.attachmentUrls.length > 0 && (
+                  <div className="mb-2 grid grid-cols-2 gap-2">
+                    {message.attachmentUrls.map((attachmentUrl) => (
+                      <img
+                        key={attachmentUrl}
+                        src={resolveAttachmentUrl(attachmentUrl)}
+                        alt="Attachment"
+                        className="max-w-full rounded-lg border border-white/20"
+                      />
+                    ))}
+                  </div>
                 )}
                 {message.content}
               </div>
@@ -465,27 +499,41 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
 
         {/* Input bar */}
         <form onSubmit={handleSend} className="shrink-0 border-t border-gray-200 p-3">
-          {pendingAttachment && (
-            <div className="mb-2 flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 p-2">
-              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-white">
-                <img
-                  src={pendingAttachment.startsWith('/') ? `${API_BASE_URL}${pendingAttachment}` : pendingAttachment}
-                  alt="Preview"
-                  className="h-full w-full object-cover"
-                />
+          {pendingAttachments.length > 0 && (
+            <div className="mb-2 rounded-xl border border-gray-100 bg-gray-50 p-2">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-medium text-gray-700">{pendingAttachments.length} photo{pendingAttachments.length === 1 ? '' : 's'} attached</p>
+                  <p className="text-[10px] text-gray-400">Ready to send</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPendingAttachments([])}
+                  className="rounded-full bg-gray-200 p-1 text-gray-500 transition-colors hover:bg-gray-300 hover:text-gray-700"
+                  title="Remove all photos"
+                >
+                  <X size={12} />
+                </button>
               </div>
-              <div className="flex-1 overflow-hidden">
-                <p className="truncate text-xs font-medium text-gray-700">Photo attached</p>
-                <p className="text-[10px] text-gray-400">Ready to send</p>
+              <div className="grid grid-cols-3 gap-2">
+                {pendingAttachments.map((attachmentUrl, index) => (
+                  <div key={attachmentUrl} className="relative overflow-hidden rounded-lg border border-gray-200 bg-white">
+                    <img
+                      src={resolveAttachmentUrl(attachmentUrl)}
+                      alt={`Preview ${index + 1}`}
+                      className="h-16 w-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPendingAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white"
+                      title="Remove photo"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
               </div>
-              <button
-                type="button"
-                onClick={() => setPendingAttachment(null)}
-                className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-gray-500 transition-colors hover:bg-gray-300 hover:text-gray-700"
-                title="Remove photo"
-              >
-                <X size={12} />
-              </button>
             </div>
           )}
           <div className="flex items-end gap-2">
@@ -495,11 +543,12 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
               onChange={handleFileUpload}
               className="hidden"
               accept="image/jpeg, image/png, image/webp"
+              multiple
             />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={isInputDisabled}
+              disabled={isInputDisabled || pendingAttachments.length >= MAX_ATTACHMENTS}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
               title="Attach photo"
             >
@@ -520,14 +569,14 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
                   ? 'Starting conversation…'
                   : initError
                   ? 'Conversation unavailable.'
-                  : pendingAttachment
-                  ? 'Photo attached... (Add a note)'
+                  : pendingAttachments.length
+                  ? `Add a note... (${pendingAttachments.length}/${MAX_ATTACHMENTS} photos attached)`
                   : 'Type a message… (Enter to send)'
               }
             />
             <button
               type="submit"
-              disabled={isInputDisabled || (!input.trim() && !pendingAttachment) || isUploading}
+              disabled={isInputDisabled || (!input.trim() && !pendingAttachments.length) || isUploading}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-200"
               title="Send message"
             >
