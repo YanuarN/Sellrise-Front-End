@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     MessageSquare, Search, ChevronLeft, ChevronRight,
     User, Mail, Phone, Tag, Clock, Flame, Thermometer, Snowflake,
-    UserCheck, ArrowRightLeft, StickyNote, Loader2, RefreshCw,
+    UserCheck, ArrowRightLeft, StickyNote, Loader2, RefreshCw, Globe, Bot, Send,
 } from 'lucide-react';
 import { Button, Input, Badge, LeadAttachmentsPanel, PageHeader } from '../../components';
 import leadService from '../../services/leadService';
@@ -45,6 +45,36 @@ function ScoreBadge({ score }) {
 function initials(name, email) {
     const src = name || email || '?';
     return src.charAt(0).toUpperCase();
+}
+
+function getConversationBadges(conversationSummaries = []) {
+    const seen = new Set();
+    const ordered = [];
+
+    conversationSummaries.forEach((summary) => {
+        const key = `${summary.channel_group || summary.channel}:${summary.mode || ''}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            ordered.push(summary);
+        }
+    });
+
+    return ordered;
+}
+
+function ChannelBadge({ summary }) {
+    const channel = summary.channel_group || summary.channel;
+    const mode = summary.mode;
+    const Icon = channel === 'telegram' ? Send : channel === 'web' ? Globe : Bot;
+    const label = channel === 'telegram' ? 'Telegram' : channel === 'web' ? 'Web' : channel;
+
+    return (
+        <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-medium text-slate-600">
+            <Icon className="w-3 h-3" />
+            {label}
+            {mode === 'bot' && channel === 'telegram' && <span className="text-slate-400">Bot</span>}
+        </span>
+    );
 }
 
 // ─── Conversation Transcript ──────────────────────────────────────────────────
@@ -222,6 +252,7 @@ function LeadDetailPanel({ lead, onUpdated }) {
     }
 
     const STAGES = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost'];
+    const channelBadges = getConversationBadges(detail.conversation_summaries);
 
     return (
         <div className="flex flex-col h-full">
@@ -236,6 +267,9 @@ function LeadDetailPanel({ lead, onUpdated }) {
                             <ScoreBadge score={detail.score} />
                             <Badge color="gray">{detail.stage}</Badge>
                             {detail.procedure && <Badge color="blue">{detail.procedure}</Badge>}
+                            {channelBadges.map((summary) => (
+                                <ChannelBadge key={`${summary.channel}-${summary.mode || 'default'}`} summary={summary} />
+                            ))}
                         </div>
                     </div>
                     <button onClick={loadDetail} className="text-slate-400 hover:text-slate-600 mt-0.5">
@@ -341,13 +375,14 @@ export default function Inbox() {
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
     const [searchInput, setSearchInput] = useState('');
+    const [channelFilter, setChannelFilter] = useState('');
     const [loading, setLoading] = useState(true);
     const [selectedLead, setSelectedLead] = useState(null);
     const [error, setError] = useState(null);
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-    const fetchLeads = useCallback(async (pg = 1, q = '') => {
+    const fetchLeads = useCallback(async (pg = 1, q = '', channel = '') => {
         setLoading(true);
         setError(null);
         try {
@@ -356,6 +391,7 @@ export default function Inbox() {
                 page: pg,
                 pageSize: PAGE_SIZE,
                 search: q || undefined,
+                channel: channel || undefined,
             });
             // res may be { items, total, page, page_size } or an array
             const items = res?.items ?? res ?? [];
@@ -369,7 +405,7 @@ export default function Inbox() {
         }
     }, []);
 
-    useEffect(() => { fetchLeads(page, search); }, [fetchLeads, page, search]);
+    useEffect(() => { fetchLeads(page, search, channelFilter); }, [fetchLeads, page, search, channelFilter]);
 
     function handleSearch(e) {
         e.preventDefault();
@@ -392,6 +428,15 @@ export default function Inbox() {
                 className="mb-4 md:mb-6"
                 actions={
                     <form onSubmit={handleSearch} className="flex gap-2 w-full md:w-auto">
+                        <select
+                            value={channelFilter}
+                            onChange={(event) => { setChannelFilter(event.target.value); setPage(1); }}
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        >
+                            <option value="">All channels</option>
+                            <option value="web">Web</option>
+                            <option value="telegram_bot">Telegram Bot</option>
+                        </select>
                         <Input
                             icon={Search}
                             placeholder="Search..."
@@ -437,6 +482,7 @@ export default function Inbox() {
                             <div className="flex-1 overflow-y-auto no-scrollbar p-2 space-y-1">
                                 {leads.map((lead) => {
                                     const isSelected = selectedLead?.id === lead.id;
+                                    const channelBadges = getConversationBadges(lead.conversation_summaries);
                                     return (
                                         <button
                                             key={lead.id}
@@ -464,6 +510,9 @@ export default function Inbox() {
                                                 )}
                                                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                                     <ScoreBadge score={lead.score} />
+                                                    {channelBadges.map((summary) => (
+                                                        <ChannelBadge key={`${lead.id}-${summary.channel}-${summary.mode || 'default'}`} summary={summary} />
+                                                    ))}
                                                     {lead.procedure && (
                                                         <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded truncate max-w-[100px]">
                                                             {lead.procedure}

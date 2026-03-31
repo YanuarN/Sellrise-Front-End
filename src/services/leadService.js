@@ -1,13 +1,14 @@
 import api from './api';
 
 const leadService = {
-  async getLeads({ page = 1, pageSize = 10, stage, score, search, inbox } = {}) {
+  async getLeads({ page = 1, pageSize = 10, stage, score, search, inbox, channel } = {}) {
     return api.get('/v1/leads', {
       page,
       page_size: pageSize,
       stage,
       score,
       search,
+      channel,
       ...(inbox ? { inbox: true } : {}),
     });
   },

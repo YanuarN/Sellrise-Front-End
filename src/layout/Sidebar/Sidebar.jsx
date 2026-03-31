@@ -1,16 +1,14 @@
-import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     Briefcase,
-    MessageSquare,
     Users,
     ChevronDown,
     ChevronRight,
     PieChart,
-    MessageCircleQuestion,
     Bot,
     LayoutDashboard,
     Inbox,
+    Radio,
     KanbanSquare,
     BookOpen,
     Settings,
@@ -22,13 +20,13 @@ import useAuthStore from '../../stores/authStore';
 const Sidebar = ({ isOpen, setIsOpen }) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const [activeItem, setActiveItem] = useState('Dashboard');
     const user = useAuthStore((s) => s.user);
     const logout = useAuthStore((s) => s.logout);
 
     const menuItems = [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
         { name: 'Inbox', icon: Inbox, path: '/inbox' },
+        { name: 'Channels', icon: Radio, path: '/channels' },
         { name: 'Pipeline', icon: KanbanSquare, path: '/pipeline' },
         { name: 'Leads', icon: Users, path: '/leads' },
         { name: 'Scenarios', icon: Bot, path: '/scenarios' },
@@ -38,16 +36,9 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         { name: 'Settings', icon: Settings, path: '/settings' },
     ];
 
-    useEffect(() => {
-        const currentPath = location.pathname;
-        const currentItem = menuItems.find(item => currentPath.startsWith(item.path));
-        if (currentItem) {
-            setActiveItem(currentItem.name);
-        }
-    }, [location.pathname]);
+    const activeItem = menuItems.find((item) => location.pathname.startsWith(item.path))?.name || 'Dashboard';
 
     const handleNavigation = (item) => {
-        setActiveItem(item.name);
         if (item.path) {
             navigate(item.path);
         }

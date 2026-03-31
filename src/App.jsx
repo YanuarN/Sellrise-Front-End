@@ -11,6 +11,7 @@ const SignUp          = lazy(() => import('./pages/Auth/SignUp'));
 const ForgotPassword  = lazy(() => import('./pages/Auth/ForgotPassword'));
 const Dashboard       = lazy(() => import('./pages/Dashboard'));
 const Inbox           = lazy(() => import('./pages/Inbox/Inbox'));
+const Channels        = lazy(() => import('./pages/Channels/Channels'));
 const LeadManagement  = lazy(() => import('./pages/LeadManagement/LeadManagement'));
 const Leads           = lazy(() => import('./pages/Leads/Leads'));
 const Scenarios       = lazy(() => import('./pages/Scenarios/Scenarios'));
@@ -39,6 +40,7 @@ function AppRoutes() {
       {/* Protected routes */}
       <Route path="/dashboard" element={<ProtectedRoute><MainLayout><Dashboard /></MainLayout></ProtectedRoute>} />
       <Route path="/inbox" element={<ProtectedRoute><MainLayout><Inbox /></MainLayout></ProtectedRoute>} />
+      <Route path="/channels" element={<ProtectedRoute><MainLayout><Channels /></MainLayout></ProtectedRoute>} />
       <Route path="/pipeline" element={<ProtectedRoute><MainLayout><LeadManagement /></MainLayout></ProtectedRoute>} />
       <Route path="/leads" element={<ProtectedRoute><MainLayout><Leads /></MainLayout></ProtectedRoute>} />
       <Route path="/scenarios" element={<ProtectedRoute><MainLayout><Scenarios /></MainLayout></ProtectedRoute>} />
