@@ -1,11 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Upload, FileText, X, Loader2, CheckCircle2, AlertCircle, File } from 'lucide-react';
 
-const ALLOWED_TYPES = {
-  'application/pdf': '.pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
-};
-const ALLOWED_EXTENSIONS = ['.pdf', '.docx'];
+const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.md'];
 const MAX_SIZE = 2 * 1024 * 1024; // 2 MB
 const MAX_SIZE_LABEL = '2 MB';
 
@@ -35,7 +31,7 @@ export default function KBDocumentUpload({ open, onClose, onUploadComplete, kbSe
   const validateFile = (f) => {
     const ext = '.' + f.name.split('.').pop().toLowerCase();
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      return `File type "${ext}" is not supported. Please upload a PDF or DOCX file.`;
+      return `File type "${ext}" is not supported. Please upload a PDF, DOCX, or Markdown file.`;
     }
     if (f.size > MAX_SIZE) {
       return `File size (${(f.size / 1024 / 1024).toFixed(1)} MB) exceeds the ${MAX_SIZE_LABEL} limit.`;
@@ -117,7 +113,7 @@ export default function KBDocumentUpload({ open, onClose, onUploadComplete, kbSe
           <div>
             <h2 className="text-xl font-bold text-slate-800">Upload Document</h2>
             <p className="text-sm text-slate-500 mt-1">
-              Upload a PDF or DOCX file to auto-generate KB articles
+              Upload a PDF, DOCX, or Markdown file to auto-generate KB articles
             </p>
           </div>
           <button
@@ -204,7 +200,7 @@ export default function KBDocumentUpload({ open, onClose, onUploadComplete, kbSe
               <input
                 ref={inputRef}
                 type="file"
-                accept=".pdf,.docx"
+                accept=".pdf,.docx,.md,text/markdown"
                 onChange={handleInputChange}
                 className="hidden"
               />
@@ -239,7 +235,7 @@ export default function KBDocumentUpload({ open, onClose, onUploadComplete, kbSe
                       Drop your file here or <span className="text-emerald-600">browse</span>
                     </p>
                     <p className="text-sm text-slate-400 mt-1">
-                      Supports PDF and DOCX — Max {MAX_SIZE_LABEL}
+                      Supports PDF, DOCX, and Markdown — Max {MAX_SIZE_LABEL}
                     </p>
                     <p className="text-xs text-amber-600 mt-2">
                       For better results, upload documents that are not too long.
@@ -274,7 +270,7 @@ export default function KBDocumentUpload({ open, onClose, onUploadComplete, kbSe
             <div className="mt-4 p-4 bg-slate-50 rounded-2xl">
               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">How it works</h4>
               <ol className="text-sm text-slate-600 space-y-1.5 list-decimal list-inside">
-                <li>Upload a PDF or DOCX document</li>
+                <li>Upload a PDF, DOCX, or Markdown document</li>
                 <li>System extracts text content automatically</li>
                 <li>AI analyzes and structures it into KB articles</li>
                 <li>Articles are saved as <strong>drafts</strong> for your review</li>

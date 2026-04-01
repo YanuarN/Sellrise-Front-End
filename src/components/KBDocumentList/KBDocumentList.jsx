@@ -97,7 +97,7 @@ export default function KBDocumentList({ kbService, isAdmin, onRefreshArticles }
       <div className="flex flex-col items-center justify-center py-20 text-gray-400">
         <File className="w-12 h-12 mb-3 text-slate-300" />
         <p className="text-lg font-medium">No documents uploaded</p>
-        <p className="text-sm mt-1">Upload a PDF or DOCX to auto-generate KB articles.</p>
+        <p className="text-sm mt-1">Upload a PDF, DOCX, or Markdown file to auto-generate KB articles.</p>
       </div>
     );
   }
