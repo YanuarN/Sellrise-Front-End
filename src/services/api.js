@@ -265,6 +265,16 @@ class ApiClient {
       this.post('/v1/steps', { conversation_id: conversationId, message }),
   };
 
+  channels = {
+    list: () => this.get('/v1/channels'),
+
+    connectTelegramBot: (payload) => this.post('/v1/channels/telegram-bot/connect', payload),
+
+    disconnectTelegramBot: (connectionId) => this.delete(`/v1/channels/telegram-bot/${connectionId}`),
+
+    getStatus: (connectionId) => this.get(`/v1/channels/${connectionId}/status`),
+  };
+
   /**
    * Widget API (public — no auth required)
    */
