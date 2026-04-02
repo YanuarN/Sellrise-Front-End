@@ -45,14 +45,14 @@ export const DEFAULT_CONFIG = {
     },
   ],
   llm_config: {
-    model: 'deepseek/deepseek-v3.2',
+    model: 'google/gemini-2.5-flash',
     temperature: 0.7,
     max_tokens: 2000,
   },
   settings: { kb_only_strict: false },
 };
 
-export const FIXED_LLM_MODEL = 'deepseek/deepseek-v3.2';
+export const FIXED_LLM_MODEL = 'google/gemini-2.5-flash';
 
 export const DEFAULT_LLM_CONFIG = {
   model: FIXED_LLM_MODEL,
