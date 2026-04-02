@@ -62,11 +62,12 @@ function extractBotReply(res) {
       if (text && typeof text === 'string' && text.trim()) return text.trim();
     }
   } catch {
-    // Not valid JSON — return as-is (better than showing nothing)
+    // If it looks like JSON but is malformed, suppress it so the UI can show a safe fallback.
+    return null;
   }
 
-  // If we couldn't extract anything sensible, return the raw string.
-  return trimmed || null;
+  // If we couldn't extract anything sensible from JSON, suppress it.
+  return null;
 }
 
 function getInitialMessageFromScenario(scenarioConfig, brandName) {
@@ -232,7 +233,7 @@ function ScenarioSimulator({ scenario, onClose }) {
       const botContent =
         (isFirstTurn && initialGreeting) ||
         extractBotReply(res) ||
-        '[No response]';
+        'I could not generate a valid simulator reply for that turn. Please try again.';
 
       setMessages((prev) => [
         ...prev,
