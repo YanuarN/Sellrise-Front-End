@@ -266,7 +266,9 @@ function LeadDetailPanel({ lead, onUpdated }) {
                         <div className="flex flex-wrap gap-2 mt-1">
                             <ScoreBadge score={detail.score} />
                             <Badge color="gray">{detail.stage}</Badge>
-                            {detail.procedure && <Badge color="blue">{detail.procedure}</Badge>}
+                            {detail.custom_fields && Object.entries(detail.custom_fields).slice(0, 1).map(([k, v]) => (
+                                <Badge key={k} color="blue">{v}</Badge>
+                            ))}
                             {channelBadges.map((summary) => (
                                 <ChannelBadge key={`${summary.channel}-${summary.mode || 'default'}`} summary={summary} />
                             ))}
@@ -284,12 +286,12 @@ function LeadDetailPanel({ lead, onUpdated }) {
                     {detail.phone && (
                         <span className="flex items-center gap-1"><Phone className="w-3 h-3 shrink-0" />{detail.phone}</span>
                     )}
-                    {detail.budget_range && (
-                        <span className="flex items-center gap-1"><Tag className="w-3 h-3 shrink-0" />Budget: {detail.budget_range}</span>
-                    )}
-                    {detail.timeframe && (
-                        <span className="flex items-center gap-1"><Clock className="w-3 h-3 shrink-0" />{detail.timeframe}</span>
-                    )}
+                    {Object.entries(detail.custom_fields || {}).slice(0, 4).map(([k, v]) => (
+                        <span key={k} className="flex items-center gap-1">
+                            <Tag className="w-3 h-3 shrink-0" />
+                            {k.replace(/_/g, ' ')}: {v}
+                        </span>
+                    ))}
                     {detail.domain && (
                         <span className="flex items-center gap-1 col-span-2 truncate">
                             <span className="shrink-0">🌐</span>{detail.domain}
@@ -513,9 +515,9 @@ export default function Inbox() {
                                                     {channelBadges.map((summary) => (
                                                         <ChannelBadge key={`${lead.id}-${summary.channel}-${summary.mode || 'default'}`} summary={summary} />
                                                     ))}
-                                                    {lead.procedure && (
+                                                    {lead.custom_fields && Object.values(lead.custom_fields)[0] && (
                                                         <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded truncate max-w-[100px]">
-                                                            {lead.procedure}
+                                                            {Object.values(lead.custom_fields)[0]}
                                                         </span>
                                                     )}
                                                 </div>
