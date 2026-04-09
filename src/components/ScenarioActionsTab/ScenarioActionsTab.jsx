@@ -1,4 +1,4 @@
-import { Zap, Plus, Trash2, Hash } from 'lucide-react';
+import { Zap, Plus, Trash2, Hash, AlertTriangle } from 'lucide-react';
 import ScenarioSectionCard from '../ScenarioSectionCard';
 import { SCENARIO_CONFIG_INPUT_CLS } from '../scenarioConfigStyles';
 import { ACTION_TYPES } from '../../pages/ScenarioConfiguration/constants';
@@ -6,6 +6,8 @@ import { ACTION_TYPES } from '../../pages/ScenarioConfiguration/constants';
 export default function ScenarioActionsTab({ config, updateConfig }) {
   const catalog = config.actions_catalog || {};
   const entries = Object.entries(catalog);
+
+  const hasPhotoUploadAction = entries.some(([, value]) => value.type === 'photo_upload');
 
   const addAction = () => {
     const tag = `#action_${Date.now().toString(36)}`;
@@ -103,6 +105,19 @@ export default function ScenarioActionsTab({ config, updateConfig }) {
           </div>
         )}
       </ScenarioSectionCard>
+
+      {hasPhotoUploadAction && (
+        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-800">Photo Upload Ordering</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              The <code className="font-mono">#photo_upload</code> action must come AFTER the lead submission step
+              in the conversation flow. The patient must exist in Phlastic before photos can be uploaded.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
