@@ -132,11 +132,12 @@ export default function Leads() {
       const items = data.items || data.data || [];
       if (items.length === 0) { alert('No leads to export'); return; }
 
-      const headers = ['Name', 'Email', 'Phone', 'Score', 'Stage', 'Procedure', 'Budget', 'Timeframe', 'Created At'];
+      const customKeys = [...new Set(items.flatMap(l => Object.keys(l.custom_fields || {})))];
+      const headers = ['Name', 'Email', 'Phone', 'Score', 'Stage', ...customKeys, 'Created At'];
       const rows = items.map(l => [
         l.name || '', l.email || '', l.phone || '',
-        l.score || '', l.stage || '', l.procedure || '',
-        l.budget_range || '', l.timeframe || '',
+        l.score || '', l.stage || '',
+        ...customKeys.map(k => (l.custom_fields || {})[k] || ''),
         l.created_at ? new Date(l.created_at).toISOString().split('T')[0] : '',
       ]);
 
@@ -259,7 +260,7 @@ export default function Leads() {
                 <th scope="col" className="px-4 md:px-6 py-4 font-semibold">Contact Info</th>
                 <th scope="col" className="px-4 md:px-6 py-4 font-semibold">Stage</th>
                 <th scope="col" className="px-4 md:px-6 py-4 font-semibold">Score</th>
-                <th scope="col" className="px-4 md:px-6 py-4 font-semibold">Procedure</th>
+                <th scope="col" className="px-4 md:px-6 py-4 font-semibold">Details</th>
                 <th scope="col" className="px-4 md:px-6 py-4 font-semibold">Created At</th>
                 <th scope="col" className="px-4 md:px-6 py-4 font-semibold text-right">Action</th>
               </tr>
@@ -331,7 +332,12 @@ export default function Leads() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-slate-600">{lead.procedure || '—'}</span>
+                        <span className="text-slate-600">
+                          {Object.entries(lead.custom_fields || {}).slice(0, 1).map(([k, v]) => (
+                            <span key={k} title={k.replace(/_/g, ' ')}>{v}</span>
+                          ))}
+                          {Object.keys(lead.custom_fields || {}).length === 0 && '—'}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-slate-500">{formatDate(lead.created_at)}</span>
@@ -437,26 +443,17 @@ export default function Leads() {
                       <span className="text-xs font-semibold text-slate-400 uppercase">Age</span>
                       <p className="text-sm font-medium text-slate-700 mt-1">{selectedLead.age || '—'}</p>
                     </div>
-                    <div className="bg-slate-50 rounded-xl p-3">
-                      <span className="text-xs font-semibold text-slate-400 uppercase">Procedure</span>
-                      <p className="text-sm font-medium text-slate-700 mt-1">{selectedLead.procedure || '—'}</p>
-                    </div>
-                    <div className="bg-slate-50 rounded-xl p-3">
-                      <span className="text-xs font-semibold text-slate-400 uppercase">Budget</span>
-                      <p className="text-sm font-medium text-slate-700 mt-1">{selectedLead.budget_range || '—'}</p>
-                    </div>
-                    <div className="bg-slate-50 rounded-xl p-3">
-                      <span className="text-xs font-semibold text-slate-400 uppercase">Timeframe</span>
-                      <p className="text-sm font-medium text-slate-700 mt-1">{selectedLead.timeframe || '—'}</p>
-                    </div>
-                    <div className="bg-slate-50 rounded-xl p-3">
-                      <span className="text-xs font-semibold text-slate-400 uppercase">Consultation Time</span>
-                      <p className="text-sm font-medium text-slate-700 mt-1">{selectedLead.appointment_time || '—'}</p>
-                    </div>
-                    <div className="bg-slate-50 rounded-xl p-3">
-                      <span className="text-xs font-semibold text-slate-400 uppercase">Goal</span>
-                      <p className="text-sm font-medium text-slate-700 mt-1">{selectedLead.goal || '—'}</p>
-                    </div>
+                    {Object.entries(selectedLead.custom_fields || {}).map(([key, value]) => (
+                      <div key={key} className="bg-slate-50 rounded-xl p-3">
+                        <span className="text-xs font-semibold text-slate-400 uppercase">{key.replace(/_/g, ' ')}</span>
+                        <p className="text-sm font-medium text-slate-700 mt-1">{value || '—'}</p>
+                      </div>
+                    ))}
+                    {Object.keys(selectedLead.custom_fields || {}).length === 0 && (
+                      <div className="col-span-2 bg-slate-50 rounded-xl p-3 text-center">
+                        <p className="text-sm text-slate-400">No additional data collected yet.</p>
+                      </div>
+                    )}
                   </div>
 
                   {selectedLead.utm_source && (

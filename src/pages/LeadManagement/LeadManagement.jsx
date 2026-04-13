@@ -222,8 +222,8 @@ export default function LeadManagement() {
                           <span className="text-xs text-gray-400">{formatDate(lead.created_at)}</span>
                         </div>
 
-                        {lead.procedure && (
-                          <p className="text-xs text-gray-500 mt-2 bg-gray-50 px-2 py-1 rounded-md truncate">{lead.procedure}</p>
+                        {lead.custom_fields && Object.values(lead.custom_fields)[0] && (
+                          <p className="text-xs text-gray-500 mt-2 bg-gray-50 px-2 py-1 rounded-md truncate">{Object.values(lead.custom_fields)[0]}</p>
                         )}
 
                         {/* Quick stage move buttons */}
@@ -278,10 +278,8 @@ export default function LeadManagement() {
                   {[
                     { label: 'Score', value: selectedLead.score },
                     { label: 'Stage', value: selectedLead.stage },
-                    { label: 'Procedure', value: selectedLead.procedure || '—' },
-                    { label: 'Budget', value: selectedLead.budget_range || '—' },
-                    { label: 'Timeframe', value: selectedLead.timeframe || '—' },
                     { label: 'Created', value: formatDate(selectedLead.created_at) },
+                    ...Object.entries(selectedLead.custom_fields || {}).map(([k, v]) => ({ label: k.replace(/_/g, ' '), value: v || '—' })),
                   ].map(item => (
                     <div key={item.label} className="bg-slate-50 rounded-xl p-3">
                       <span className="text-xs font-semibold text-slate-400 uppercase">{item.label}</span>
