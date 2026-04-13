@@ -14,8 +14,8 @@
  * - end
  */
 
-import { useState, useEffect } from 'react';
-import { Send, ExternalLink, User } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Send, ExternalLink, User, Upload, Camera, X, Check, AlertCircle } from 'lucide-react';
 import Button from './Button';
 
 const StepRenderer = ({
@@ -378,6 +378,9 @@ const StepRenderer = ({
         </div>
       );
 
+    case 'photo_upload':
+      return <PhotoUploadStep step={step} onSubmit={onSubmit} disabled={disabled} className={className} />;
+
     default:
       return (
         <div className={`${className}`}>
@@ -389,6 +392,179 @@ const StepRenderer = ({
         </div>
       );
   }
+};
+
+/* ── Photo Upload Step Component (PRD 3) ───────────────────────────────────── */
+const PHOTO_TYPES = [
+  { value: 'face_front', label: 'Front face' },
+  { value: 'face_side', label: 'Side profile' },
+  { value: 'face_45', label: '45° angle' },
+  { value: 'body', label: 'Body / area of interest' },
+  { value: 'other', label: 'Other' },
+];
+
+const PhotoUploadStep = ({ step, onSubmit, disabled, className }) => {
+  const config = step.config || {};
+  const maxFiles = config.max_files || 5;
+  const maxSizeMb = config.max_size_mb || 10;
+  const acceptedTypes = config.accepted_types || ['image/jpeg', 'image/png', 'image/heic'];
+  const photoTypes = config.photo_types || PHOTO_TYPES.map(t => t.value);
+  const consentText = config.consent_text || 'I consent to sharing these photos with the medical team for consultation purposes.';
+  const isRequired = config.required !== false;
+  const prompt = config.prompt || 'Please upload photos for your consultation.';
+
+  const [photos, setPhotos] = useState([]);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const addFiles = (files) => {
+    const newPhotos = [];
+    for (const file of files) {
+      if (photos.length + newPhotos.length >= maxFiles) break;
+      if (file.size > maxSizeMb * 1024 * 1024) {
+        alert(`File too large (max ${maxSizeMb}MB): ${file.name}`);
+        continue;
+      }
+      if (!acceptedTypes.includes(file.type) && file.type !== '') {
+        alert(`Unsupported file type: ${file.name}`);
+        continue;
+      }
+      newPhotos.push({
+        file,
+        preview: URL.createObjectURL(file),
+        type: photoTypes[0] || 'other',
+      });
+    }
+    if (newPhotos.length > 0) {
+      setPhotos(prev => [...prev, ...newPhotos]);
+    }
+  };
+
+  const removePhoto = (index) => {
+    setPhotos(prev => {
+      const updated = [...prev];
+      URL.revokeObjectURL(updated[index].preview);
+      updated.splice(index, 1);
+      return updated;
+    });
+  };
+
+  const handleSubmit = () => {
+    if (!consentChecked || photos.length === 0) return;
+    onSubmit({
+      type: 'photo_upload',
+      value: {
+        photos: photos.map(p => ({ file: p.file, type: p.type })),
+        consent_given: true,
+      },
+    });
+  };
+
+  const handleSkip = () => {
+    onSubmit({ type: 'photo_upload', value: { photos: [], skipped: true } });
+  };
+
+  const typeOptions = photoTypes.map(t => {
+    const found = PHOTO_TYPES.find(pt => pt.value === t);
+    return found || { value: t, label: t };
+  });
+
+  return (
+    <div className={`space-y-4 ${className}`}>
+      <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4">
+        <p className="text-sm text-blue-900">{prompt}</p>
+      </div>
+
+      {/* Photo grid */}
+      <div className="grid grid-cols-3 gap-3">
+        {photos.map((photo, index) => (
+          <div key={index} className="relative aspect-square rounded-lg border-2 border-gray-200 overflow-hidden bg-white">
+            <img src={photo.preview} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
+            <button
+              onClick={() => removePhoto(index)}
+              className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 text-white hover:bg-black/80"
+              type="button"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <select
+              value={photo.type}
+              onChange={(e) => {
+                const updated = [...photos];
+                updated[index] = { ...updated[index], type: e.target.value };
+                setPhotos(updated);
+              }}
+              className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 py-0.5 border-none outline-none"
+            >
+              {typeOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+        ))}
+
+        {photos.length < maxFiles && (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled}
+            className="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 hover:border-blue-500 hover:bg-blue-50 transition-colors disabled:opacity-50"
+          >
+            <Upload className="w-5 h-5 text-gray-400" />
+            <span className="text-[10px] text-gray-400">Add Photo</span>
+          </button>
+        )}
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={acceptedTypes.join(',')}
+        multiple
+        onChange={(e) => { addFiles(Array.from(e.target.files || [])); e.target.value = ''; }}
+        className="hidden"
+      />
+
+      {/* Consent checkbox */}
+      <label className="flex items-start gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={consentChecked}
+          onChange={(e) => setConsentChecked(e.target.checked)}
+          className="mt-0.5 w-4 h-4 accent-blue-600 flex-shrink-0"
+        />
+        <span className="text-xs text-gray-600 leading-relaxed">{consentText}</span>
+      </label>
+
+      {/* Actions */}
+      <div className="flex gap-2">
+        <Button
+          variant="primary"
+          size="md"
+          onClick={handleSubmit}
+          disabled={disabled || !consentChecked || photos.length === 0}
+          className="flex-1"
+        >
+          <Upload className="w-4 h-4 mr-1" />
+          Upload & Continue
+        </Button>
+        {!isRequired && (
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={handleSkip}
+            disabled={disabled}
+          >
+            Skip
+          </Button>
+        )}
+      </div>
+
+      <p className="text-[10px] text-gray-400 text-center">
+        Max {maxFiles} photos, {maxSizeMb}MB each. JPEG, PNG, HEIC accepted.
+      </p>
+    </div>
+  );
 };
 
 export default StepRenderer;

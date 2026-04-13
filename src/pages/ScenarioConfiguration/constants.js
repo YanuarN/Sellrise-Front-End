@@ -87,6 +87,7 @@ export const ACTION_TYPES = [
   { value: 'handover_to_human', label: 'Handover to Human' },
   { value: 'send_products', label: 'Send Products' },
   { value: 'book_meeting', label: 'Book Meeting' },
+  { value: 'photo_upload', label: 'Photo Upload (Phlastic)' },
   { value: 'stop_automation', label: 'Stop Automation' },
   { value: 'custom', label: 'Custom' },
 ];
