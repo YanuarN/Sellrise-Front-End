@@ -37,6 +37,10 @@ const leadService = {
   async deleteLeadAttachment(leadId, attachmentId) {
     return api.delete(`/v1/leads/${leadId}/attachments/${attachmentId}`);
   },
+
+  async sendCabinetInvite(leadId) {
+    return api.post(`/v1/leads/${leadId}/send-invite`);
+  },
 };
 
 export default leadService;

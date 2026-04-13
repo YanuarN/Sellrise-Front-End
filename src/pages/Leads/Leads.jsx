@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Users, Filter, Download, ArrowUpRight, Search, Loader2, ChevronDown, X, UserPlus } from 'lucide-react';
+import { Users, Filter, Download, ArrowUpRight, Search, Loader2, ChevronDown, X, UserPlus, Send } from 'lucide-react';
 import { Button, Input, LeadAttachmentsPanel } from '../../components';
 import { leadService } from '../../services';
 import useAuthStore from '../../stores/authStore';
@@ -37,6 +37,8 @@ export default function Leads() {
   const [noteText, setNoteText] = useState('');
   const [addingNote, setAddingNote] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [sendingInvite, setSendingInvite] = useState(false);
+  const [inviteResult, setInviteResult] = useState(null);
   const user = useAuthStore((s) => s.user);
   const isAgent = user?.role === 'admin' || user?.role === 'agent';
 
@@ -73,6 +75,7 @@ export default function Leads() {
   const openLeadDetail = async (leadId) => {
     setDetailLoading(true);
     setSelectedLead(null);
+    setInviteResult(null);
     try {
       const detail = await leadService.getLead(leadId);
       setSelectedLead(detail);
@@ -455,6 +458,43 @@ export default function Leads() {
                       </div>
                     )}
                   </div>
+
+                  {/* Send Cabinet Invite — only if patient linked */}
+                  {(selectedLead.external_identities?.phlastic || selectedLead.external_identities?.patient_service || selectedLead.external_identities?.phlastic_patient_service) && (
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-sm font-semibold text-indigo-800">Phlastic Cabinet</h4>
+                          <p className="text-xs text-indigo-600 mt-0.5">Send an invite so the patient can access their cabinet.</p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            setSendingInvite(true);
+                            setInviteResult(null);
+                            try {
+                              const res = await leadService.sendCabinetInvite(selectedLead.id);
+                              setInviteResult({ ok: true, msg: `Invite sent! Expires ${res.expires_at ? new Date(res.expires_at).toLocaleDateString() : 'in 7 days'}.` });
+                              // Refresh lead detail to show invite event
+                              const detail = await leadService.getLead(selectedLead.id);
+                              setSelectedLead(detail);
+                            } catch (err) {
+                              setInviteResult({ ok: false, msg: err?.detail || err?.message || 'Failed to send invite.' });
+                            } finally {
+                              setSendingInvite(false);
+                            }
+                          }}
+                          disabled={sendingInvite}
+                          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg disabled:opacity-50 transition-colors"
+                        >
+                          {sendingInvite ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                          Send Invite
+                        </button>
+                      </div>
+                      {inviteResult && (
+                        <p className={`text-xs mt-2 ${inviteResult.ok ? 'text-green-700' : 'text-red-600'}`}>{inviteResult.msg}</p>
+                      )}
+                    </div>
+                  )}
 
                   {selectedLead.utm_source && (
                     <div className="bg-slate-50 rounded-xl p-3">
