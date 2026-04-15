@@ -229,6 +229,9 @@
     var hasShownGreeting = false;
     var patientServiceConfig = null;    // { enabled, base_url, auth_token }
     var patientId = null;               // Phlastic patient_id from external_identities
+    // Guard: prevent photo upload UI from re-triggering once the user has
+    // interacted with it (uploaded or skipped). Mirrors WidgetSimulator behaviour.
+    var photoUploadTriggered = false;
 
     /* Accept patient_service from config (typically injected after /session call) */
     if (config.patient_service && config.patient_service.enabled) {
@@ -391,248 +394,86 @@
     }
 
     function renderPhotoUploadStep(stepConfig, onComplete) {
-      var cfg = stepConfig.config || stepConfig || {};
-      var promptText = cfg.prompt || 'Please upload photos for your consultation.';
-      var consentText = cfg.consent_text || 'I consent to sharing these photos with the medical team for consultation purposes.';
-      var maxFiles = cfg.max_files || PHOTO_MAX_FILES;
-      var isRequired = cfg.required !== false;
-      var photoTypes = cfg.photo_types || PHOTO_TYPES;
-
-      var photoSlots = []; // { file, type, status: 'pending'|'uploading'|'success'|'failed', progress, photoId }
-      var consentChecked = false;
-
       var wrapper = el('div', { class: 'sr-msg bot' });
       var stepEl = el('div', { class: 'sr-photo-step' });
 
-      function rebuildUI() {
-        var slotsHtml = '';
-        var filledCount = photoSlots.length;
-        var showAddSlots = Math.min(maxFiles - filledCount, 3 - filledCount);
-        if (showAddSlots < 0) showAddSlots = 0;
-        var totalVisible = filledCount + (filledCount < maxFiles ? 1 : 0);
-        if (totalVisible > maxFiles) totalVisible = maxFiles;
+      var inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'image/jpeg,image/png,image/heic,image/*';
+      inp.style.display = 'none';
+      document.body.appendChild(inp);
 
-        for (var i = 0; i < photoSlots.length; i++) {
-          var ps = photoSlots[i];
-          var statusIcon = '';
-          var progressBar = '';
-          var removeBtn = '<button class="sr-slot-remove" data-rm="' + i + '">&times;</button>';
-          if (ps.status === 'uploading') {
-            progressBar = '<div class="sr-slot-progress" style="width:' + (ps.progress || 0) + '%"></div>';
-            removeBtn = '';
-          } else if (ps.status === 'success') {
-            statusIcon = '<span class="sr-slot-status">\u2705</span>';
-          } else if (ps.status === 'failed') {
-            statusIcon = '<span class="sr-slot-status">\u274c</span>';
-          }
-          var thumbUrl = ps.file ? URL.createObjectURL(ps.file) : '';
-          slotsHtml += '<div class="sr-photo-slot has-photo">' +
-            '<img src="' + escHtml(thumbUrl) + '" alt="Photo ' + (i+1) + '" />' +
-            removeBtn + statusIcon + progressBar +
-          '</div>';
-        }
-        if (filledCount < maxFiles) {
-          slotsHtml += '<div class="sr-photo-slot" data-add="true"><span class="sr-slot-icon">+</span><span class="sr-slot-label">Add Photo</span></div>';
-        }
-
-        var typeOptionsHtml = photoTypes.map(function(t) {
-          return '<option value="' + t + '">' + (PHOTO_TYPE_LABELS[t] || t) + '</option>';
-        }).join('');
-
-        var allDone = photoSlots.length > 0 && photoSlots.every(function(s) { return s.status === 'success'; });
-        var anyUploading = photoSlots.some(function(s) { return s.status === 'uploading'; });
-        var anyPending = photoSlots.some(function(s) { return s.status === 'pending' || s.status === 'failed'; });
-        var uploadDisabled = !consentChecked || photoSlots.length === 0 || anyUploading || allDone;
-        var skipVisible = !isRequired && !anyUploading;
-
-        stepEl.innerHTML =
-          '<p class="sr-photo-prompt">' + escHtml(promptText) + '</p>' +
-          '<div class="sr-photo-grid">' + slotsHtml + '</div>' +
-          (photoSlots.length > 0 ? '<div class="sr-photo-type-row"><label>Photo type</label><select id="sr-photo-type-select">' + typeOptionsHtml + '</select></div>' : '') +
-          '<div class="sr-consent-row">' +
-            '<input type="checkbox" id="sr-photo-consent" ' + (consentChecked ? 'checked' : '') + ' />' +
-            '<label for="sr-photo-consent">' + escHtml(consentText) + '</label>' +
-          '</div>' +
-          '<div class="sr-photo-actions">' +
-            '<button class="sr-photo-btn-upload" id="sr-photo-upload-btn" ' + (uploadDisabled ? 'disabled' : '') + '>' +
-              (allDone ? '\u2705 Done' : (anyUploading ? 'Uploading...' : 'Upload & Continue')) +
-            '</button>' +
-            (skipVisible ? '<button class="sr-photo-btn-skip" id="sr-photo-skip-btn">Skip</button>' : '') +
-          '</div>';
-
-        // Bind events
-        var addSlot = stepEl.querySelector('[data-add]');
-        if (addSlot) {
-          addSlot.addEventListener('click', function() {
-            var inp = document.createElement('input');
-            inp.type = 'file';
-            inp.accept = PHOTO_ACCEPTED.join(',');
-            inp.multiple = true;
-            inp.addEventListener('change', function(e) {
-              var files = Array.prototype.slice.call(e.target.files || []);
-              for (var fi = 0; fi < files.length && photoSlots.length < maxFiles; fi++) {
-                var f = files[fi];
-                if (f.size > PHOTO_MAX_SIZE_MB * 1024 * 1024) {
-                  alert('File too large (max ' + PHOTO_MAX_SIZE_MB + 'MB): ' + f.name);
-                  continue;
-                }
-                if (PHOTO_ACCEPTED.indexOf(f.type) === -1 && f.type !== '') {
-                  alert('Unsupported file type: ' + f.name + '. Accepted: JPEG, PNG, HEIC');
-                  continue;
-                }
-                photoSlots.push({ file: f, type: photoTypes[0], status: 'pending', progress: 0, photoId: null });
-              }
-              rebuildUI();
-            });
-            inp.click();
-          });
-        }
-
-        // Remove buttons
-        var rmBtns = stepEl.querySelectorAll('[data-rm]');
-        for (var ri = 0; ri < rmBtns.length; ri++) {
-          (function(btn) {
-            btn.addEventListener('click', function() {
-              var idx = parseInt(btn.getAttribute('data-rm'), 10);
-              photoSlots.splice(idx, 1);
-              rebuildUI();
-            });
-          })(rmBtns[ri]);
-        }
-
-        // Consent checkbox
-        var consentCb = document.getElementById('sr-photo-consent');
-        if (consentCb) {
-          consentCb.addEventListener('change', function() {
-            consentChecked = this.checked;
-            rebuildUI();
-          });
-        }
-
-        // Type select — applies to all pending photos
-        var typeSelect = document.getElementById('sr-photo-type-select');
-        if (typeSelect) {
-          typeSelect.addEventListener('change', function() {
-            var val = this.value;
-            for (var ti = 0; ti < photoSlots.length; ti++) {
-              if (photoSlots[ti].status === 'pending') {
-                photoSlots[ti].type = val;
-              }
-            }
-          });
-        }
-
-        // Upload button
-        var uploadBtn = document.getElementById('sr-photo-upload-btn');
-        if (uploadBtn && allDone) {
-          uploadBtn.addEventListener('click', function() { onComplete(photoSlots); });
-        } else if (uploadBtn) {
-          uploadBtn.addEventListener('click', function() {
-            if (!consentChecked || photoSlots.length === 0) return;
-            startPhotoUploads();
-          });
-        }
-
-        // Skip button
-        var skipBtn = document.getElementById('sr-photo-skip-btn');
-        if (skipBtn) {
-          skipBtn.addEventListener('click', function() { onComplete([]); });
-        }
-
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+      function cleanup() {
+        if (inp.parentNode) inp.parentNode.removeChild(inp);
       }
 
-      function startPhotoUploads() {
-        if (!patientServiceConfig || !patientServiceConfig.base_url) {
-          alert('Photo upload service is not configured.');
-          return;
-        }
-        if (!patientId) {
-          alert('Patient record not found. Please complete the contact form first.');
-          return;
-        }
-
-        var pendingSlots = photoSlots.filter(function(s) { return s.status === 'pending' || s.status === 'failed'; });
-        pendingSlots.forEach(function(slot) {
-          slot.status = 'uploading';
-          slot.progress = 0;
-        });
-        rebuildUI();
-
-        pendingSlots.forEach(function(slot, idx) {
-          uploadSinglePhoto(slot);
-        });
+      function showUploadingState() {
+        var actionsEl = stepEl.querySelector('.sr-photo-actions');
+        if (actionsEl) actionsEl.innerHTML = '<span style="opacity:0.7">Uploading...</span>';
       }
 
-      function uploadSinglePhoto(slot) {
-        var fd = new FormData();
-        fd.append('file', slot.file);
-        fd.append('type', slot.type);
-        fd.append('uploaded_via', 'chatbot');
-        fd.append('consent_given', 'true');
-
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', patientServiceConfig.base_url + '/patients/' + patientId + '/photos');
-        xhr.setRequestHeader('Authorization', 'Bearer ' + patientServiceConfig.auth_token);
-
-        xhr.upload.addEventListener('progress', function(e) {
-          if (e.lengthComputable) {
-            slot.progress = Math.round((e.loaded / e.total) * 100);
-            rebuildUI();
-          }
-        });
-
-        xhr.addEventListener('load', function() {
-          if (xhr.status === 201 || xhr.status === 200) {
-            slot.status = 'success';
-            try {
-              var resp = JSON.parse(xhr.responseText);
-              slot.photoId = resp.id || null;
-            } catch(e) { /* ignore parse error */ }
-            rebuildUI();
-            logPhotoEvent(slot);
-            checkAllComplete();
-          } else {
-            slot.status = 'failed';
-            slot.progress = 0;
-            rebuildUI();
-          }
-        });
-
-        xhr.addEventListener('error', function() {
-          slot.status = 'failed';
-          slot.progress = 0;
-          rebuildUI();
-        });
-
-        xhr.send(fd);
+      function showErrorState() {
+        var actionsEl = stepEl.querySelector('.sr-photo-actions');
+        if (actionsEl) {
+          actionsEl.innerHTML =
+            '<span style="color:#ef4444;font-size:13px">Upload failed. </span>' +
+            '<button class="sr-photo-btn-skip" id="sr-photo-skip-retry">Maybe Later</button>';
+          var retrySkip = actionsEl.querySelector('#sr-photo-skip-retry');
+          if (retrySkip) retrySkip.addEventListener('click', function() { cleanup(); onComplete([]); });
+        }
       }
 
-      function logPhotoEvent(slot) {
-        if (!slot.photoId || !leadId) return;
+      function doUpload(file) {
+        showUploadingState();
         var host = apiBase === '/' ? '' : apiBase;
-        fetch(host + '/v1/widget/photo-event', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            workspace_id: workspace,
-            lead_id: leadId,
-            photo_id: slot.photoId,
-            photo_type: slot.type,
-            patient_id: patientId,
-          }),
-        }).catch(function() { /* best-effort logging */ });
+        var fd = new FormData();
+        fd.append('file', file);
+        fd.append('workspace_id', workspace);
+        fetch(host + '/v1/widget/upload', { method: 'POST', body: fd })
+          .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('Upload failed')); })
+          .then(function(res) {
+            var files = normalizeUploadedFiles(res);
+            var urls = files.map(function(f) { return f.url || f; });
+            cleanup();
+            onComplete(urls);
+          })
+          .catch(function() { showErrorState(); });
       }
 
-      function checkAllComplete() {
-        var allDone = photoSlots.every(function(s) { return s.status === 'success'; });
-        if (allDone) { rebuildUI(); }
+      stepEl.innerHTML =
+        '<div class="sr-photo-actions">' +
+          '<button class="sr-photo-btn-upload" id="sr-photo-btn-upload">Upload Photo</button>' +
+          '<button class="sr-photo-btn-upload" id="sr-photo-btn-camera">Take Photo</button>' +
+          '<button class="sr-photo-btn-skip" id="sr-photo-btn-skip">Maybe Later</button>' +
+        '</div>';
+
+      var uploadBtn = stepEl.querySelector('#sr-photo-btn-upload');
+      if (uploadBtn) {
+        uploadBtn.addEventListener('click', function() {
+          inp.removeAttribute('capture');
+          inp.onchange = function(e) { if (e.target.files && e.target.files[0]) doUpload(e.target.files[0]); };
+          inp.click();
+        });
       }
 
-      rebuildUI();
+      var cameraBtn = stepEl.querySelector('#sr-photo-btn-camera');
+      if (cameraBtn) {
+        cameraBtn.addEventListener('click', function() {
+          inp.setAttribute('capture', 'environment');
+          inp.onchange = function(e) { if (e.target.files && e.target.files[0]) doUpload(e.target.files[0]); };
+          inp.click();
+        });
+      }
+
+      var skipBtn = stepEl.querySelector('#sr-photo-btn-skip');
+      if (skipBtn) skipBtn.addEventListener('click', function() { cleanup(); onComplete([]); });
+
+      // append to DOM
       wrapper.appendChild(stepEl);
       messagesEl.appendChild(wrapper);
       messagesEl.scrollTop = messagesEl.scrollHeight;
+
+
     }
 
     var typingEl = null;
@@ -772,33 +613,70 @@
           }
           addMessage('bot', res.bot_reply || '(no reply)');
 
-          /* ── Check for photo_upload action (PRD 3) ─────────────────── */
-          var actions = res.actions || [];
-          for (var ai = 0; ai < actions.length; ai++) {
-            var action = actions[ai];
-            if (action && (action.type === 'photo_upload' || action.tag === '#photo_upload')) {
-              /* Try to get patient_id from lead external_identities */
-              if (!patientId) {
-                fetchPatientId(function() {
-                  renderPhotoUploadStep(action.config || action.payload || {}, function(slots) {
-                    var count = slots.filter(function(s) { return s.status === 'success'; }).length;
-                    if (count > 0) {
-                      addMessage('bot', '\u2705 ' + count + ' photo(s) uploaded successfully. Thank you!');
-                    }
-                    sendMessage('photo_upload_complete');
-                  });
-                });
-              } else {
-                renderPhotoUploadStep(action.config || action.payload || {}, function(slots) {
-                  var count = slots.filter(function(s) { return s.status === 'success'; }).length;
-                  if (count > 0) {
-                    addMessage('bot', '\u2705 ' + count + ' photo(s) uploaded successfully. Thank you!');
-                  }
-                  sendMessage('photo_upload_complete');
-                });
+          /* ── Check for photo_upload stage (stage_type detection) ───── */
+          // Primary: check current_stage → stage_type in scenario config (deterministic)
+          // Fallback: check res.actions for backwards compatibility
+          var shouldShowPhotoUpload = false;
+          var photoStepConfig = {};
+
+          if (!photoUploadTriggered) {
+            var currentStageId = res.current_stage;
+            if (currentStageId && scenario && scenario.stages) {
+              var stageList = Array.isArray(scenario.stages)
+                ? scenario.stages
+                : Object.values(scenario.stages);
+              var matchedStage = null;
+              for (var si = 0; si < stageList.length; si++) {
+                if (stageList[si] && stageList[si].stage_id === currentStageId) {
+                  matchedStage = stageList[si];
+                  break;
+                }
               }
-              break;
+              if (matchedStage && matchedStage.stage_type === 'photo_upload') {
+                // Only trigger when bot's reply for THIS turn actually asks for photos,
+                // meaning the LLM was genuinely prompted by the photo stage.
+                var botLower = (res.bot_reply || '').toLowerCase();
+                var mentionsPhoto = ['photo', 'picture', 'image', 'upload', 'foto'].some(function(kw) {
+                  return botLower.indexOf(kw) !== -1;
+                });
+                if (mentionsPhoto) {
+                  shouldShowPhotoUpload = true;
+                  // Get upload config from actions_catalog if available
+                  var catalog = scenario.actions_catalog || {};
+                  var catalogEntry = catalog['#photo_upload'];
+                  photoStepConfig = (catalogEntry && catalogEntry.payload_schema && catalogEntry.payload_schema.config)
+                    ? catalogEntry.payload_schema.config
+                    : {};
+                }
+              }
             }
+
+            // Fallback: LLM actions (legacy path, kept for backward compatibility)
+            if (!shouldShowPhotoUpload) {
+              var actions = res.actions || [];
+              for (var ai = 0; ai < actions.length; ai++) {
+                var action = actions[ai];
+                if (action && (action.type === 'photo_upload' || action.tag === '#photo_upload')) {
+                  shouldShowPhotoUpload = true;
+                  photoStepConfig = action.config || (action.payload && action.payload.config) || {};
+                  break;
+                }
+              }
+            }
+          }
+
+          if (shouldShowPhotoUpload) {
+            photoUploadTriggered = true;
+            // Small delay so bot message is readable before the upload UI appears
+            setTimeout(function() {
+              renderPhotoUploadStep(photoStepConfig, function(urls) {
+                if (urls.length > 0) {
+                  sendMessage("I've uploaded my photos");
+                } else {
+                  sendMessage('maybe later');
+                }
+              });
+            }, 1200);
           }
         })
         .catch(function (err) {
