@@ -118,6 +118,11 @@ export default function ScenarioStagesTab({ config, updateConfig }) {
                       <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
                         P{stage.priority ?? 0}
                       </span>
+                      {stage.stage_type === 'photo_upload' && (
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                          photo_upload
+                        </span>
+                      )}
                       <span className="text-xs text-slate-400">
                         {stage.entry_condition?.type || 'always'}
                       </span>
@@ -154,6 +159,24 @@ export default function ScenarioStagesTab({ config, updateConfig }) {
                           />
                         </ScenarioField>
                       </div>
+
+                      <ScenarioField label="Stage Type">
+                        <select
+                          value={stage.stage_type || 'normal'}
+                          onChange={(e) =>
+                            updateStage(idx, 'stage_type', e.target.value === 'normal' ? undefined : e.target.value)
+                          }
+                          className={`${SCENARIO_CONFIG_INPUT_CLS} text-xs`}
+                        >
+                          <option value="normal">Normal</option>
+                          <option value="photo_upload">Photo Upload</option>
+                        </select>
+                        {stage.stage_type === 'photo_upload' && (
+                          <p className="mt-1 text-[10px] text-amber-600">
+                            Widget will show the photo upload popup when this stage is active.
+                          </p>
+                        )}
+                      </ScenarioField>
 
                       <ScenarioField label="Instruction">
                         <textarea

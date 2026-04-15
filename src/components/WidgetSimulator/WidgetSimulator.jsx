@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, RotateCcw, AlertTriangle, Send, Bot, User, Loader2, Paperclip } from 'lucide-react';
+import { X, RotateCcw, AlertTriangle, Send, Bot, User, Loader2, Paperclip, Camera, ImageIcon } from 'lucide-react';
 import { Button } from '../Button';
 import api, { API_BASE_URL } from '../../services/api';
 import AuthImage from '../AuthImage';
@@ -116,9 +116,16 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
   const [isUploading, setIsUploading] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState([]);
   const [isFallbackMode, setIsFallbackMode] = useState(false);
+  const [showPhotoUploadModal, setShowPhotoUploadModal] = useState(false);
+  const [isModalUploading, setIsModalUploading] = useState(false);
   const endRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const modalUploadRef = useRef(null);
+  const modalCameraRef = useRef(null);
+  // Guard: prevent the photo popup from re-showing after user already interacted
+  // with it (uploaded or skipped). Reset only on full conversation reset.
+  const photoModalTriggeredRef = useRef(false);
 
   // Scroll to the latest message whenever messages update.
   useEffect(() => {
@@ -242,6 +249,115 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     ]);
   };
 
+  /**
+   * Core send helper — sends one turn to the widget API and pushes the bot reply.
+   * Also detects #photo_upload in actions to trigger the upload modal.
+   */
+  const sendWidgetMessage = async (textContent, attachmentUrls = []) => {
+    if (isSending || !leadId) return;
+
+    const isFirstTurn = !messages.some((m) => m.role === 'user');
+
+    setIsSending(true);
+    setMessages((prev) => [
+      ...prev,
+      { id: Date.now(), role: 'user', content: textContent, attachmentUrls },
+    ]);
+
+    try {
+      const payload = {
+        workspace_id: workspaceId,
+        lead_id: leadId,
+        message: textContent,
+        channel: 'web',
+        session_id: sessionId,
+      };
+      if (attachmentUrls.length) {
+        payload.attachments = attachmentUrls;
+      }
+      const res = await api.widget.sendMessage(payload);
+      pushBotMessage((isFirstTurn && initialGreeting) || res.bot_reply || '[No response]');
+
+      // Detect photo upload step from current_stage → stage_type in scenario config.
+      // Deterministic: set by the backend stage resolver, not LLM output.
+      const currentStageId = res.current_stage;
+      const stages = Array.isArray(publishedScenarioConfig?.stages)
+        ? publishedScenarioConfig.stages
+        : Object.values(publishedScenarioConfig?.stages || {});
+      const currentStageConfig = stages.find((s) => s?.stage_id === currentStageId);
+
+      // Only trigger the photo popup when:
+      // 1. The resolved stage is a photo_upload stage
+      // 2. The bot's actual reply for THIS turn already mentions photo
+      //    (meaning the LLM was genuinely prompted by stage 11 instructions,
+      //    not just that the stage resolver quietly jumped ahead)
+      // 3. We haven't already shown the popup for this conversation session
+      if (
+        currentStageConfig?.stage_type === 'photo_upload' &&
+        !photoModalTriggeredRef.current
+      ) {
+        const botReplyLower = (res.bot_reply || '').toLowerCase();
+        const replyMentionsPhoto = ['photo', 'picture', 'image', 'upload', 'foto'].some(
+          (kw) => botReplyLower.includes(kw),
+        );
+        if (replyMentionsPhoto) {
+          photoModalTriggeredRef.current = true;
+          setTimeout(() => setShowPhotoUploadModal(true), 1200);
+        }
+        // If reply doesn't mention photo yet, the LLM is still finishing the
+        // previous stage's reply. Let the next user turn naturally land in stage
+        // 11 where the LLM will ask the photo question on its own.
+      }
+    } catch (err) {
+      pushBotMessage(`Error: ${err.message || 'Could not get a response. Please try again.'}`);
+    } finally {
+      setIsSending(false);
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
+  };
+
+  /** Upload files chosen inside the modal and auto-send them to the bot. */
+  const handleModalFileSelect = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const oversized = files.find((f) => f.size > 10 * 1024 * 1024);
+    if (oversized) {
+      alert(`File too large (max 10 MB): ${oversized.name}`);
+      return;
+    }
+
+    setIsModalUploading(true);
+    try {
+      const formData = new FormData();
+      files.forEach((file) => formData.append('file', file));
+      formData.append('workspace_id', workspaceId);
+
+      const uploadRes = await api.widget.upload(formData);
+      const uploadedFiles = normalizeUploadedFiles(uploadRes);
+      const urls = uploadedFiles.map((item) => item.url).filter(Boolean);
+
+      if (urls.length) {
+        photoModalTriggeredRef.current = true; // prevent popup re-showing after upload
+        setShowPhotoUploadModal(false);
+        await sendWidgetMessage("I've uploaded my photos", urls);
+      }
+    } catch (err) {
+      alert(`Upload failed: ${err.message}`);
+    } finally {
+      setIsModalUploading(false);
+      if (modalUploadRef.current) modalUploadRef.current.value = '';
+      if (modalCameraRef.current) modalCameraRef.current.value = '';
+    }
+  };
+
+  /** User chose "Maybe Later" inside the upload modal. */
+  const handleModalSkip = async () => {
+    photoModalTriggeredRef.current = true; // prevent popup re-showing after skip
+    setShowPhotoUploadModal(false);
+    await sendWidgetMessage('maybe later');
+  };
+
   const handleFileUpload = async (e) => {
     const selectedFiles = Array.from(e.target.files || []);
     if (!selectedFiles.length) return;
@@ -285,37 +401,12 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
 
     const trimmed = input.trim();
     if ((!trimmed && !pendingAttachments.length) || isFallbackMode || isSending || isUploading || !leadId) return;
-    const isFirstTurn = !messages.some((message) => message.role === 'user');
 
     const curAttachments = pendingAttachments;
     setPendingAttachments([]);
     setInput('');
-    setIsSending(true);
 
-    setMessages((prev) => [
-      ...prev,
-      { id: Date.now(), role: 'user', content: trimmed, attachmentUrls: curAttachments },
-    ]);
-
-    try {
-      const payload = {
-        workspace_id: workspaceId,
-        lead_id: leadId,
-        message: trimmed,
-        channel: 'web',
-        session_id: sessionId,
-      };
-      if (curAttachments.length) {
-        payload.attachments = curAttachments;
-      }
-      const res = await api.widget.sendMessage(payload);
-      pushBotMessage((isFirstTurn && initialGreeting) || res.bot_reply || '[No response]');
-    } catch (err) {
-      pushBotMessage(`Error: ${err.message || 'Could not get a response. Please try again.'}`);
-    } finally {
-      setIsSending(false);
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
+    await sendWidgetMessage(trimmed, curAttachments);
   };
 
   const handleKeyDown = (e) => {
@@ -334,6 +425,8 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     setLeadId(null);
     setIsInitialising(true);
     setInitError(null);
+    setShowPhotoUploadModal(false);
+    photoModalTriggeredRef.current = false;
 
     if (isContextLoading) return;
     if (!publishedScenarioConfig) {
@@ -365,11 +458,11 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
     pushBotMessage(fallbackMessage || 'Please leave your details and our team will contact you shortly.');
   };
 
-  const isInputDisabled = isFallbackMode || isSending || isInitialising || isContextLoading || !!initError || !leadId;
+  const isInputDisabled = isFallbackMode || isSending || isInitialising || isContextLoading || !!initError || !leadId || showPhotoUploadModal;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl" style={{ height: '560px' }}>
+      <div className="relative flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl" style={{ height: '560px' }}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
           <div className="flex items-center gap-2">
@@ -497,6 +590,81 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
 
           <div ref={endRef} />
         </div>
+
+        {/* Photo Upload Modal — bottom sheet overlay */}
+        {showPhotoUploadModal && (
+          <div className="absolute inset-0 z-10 flex items-end bg-black/30 rounded-2xl">
+            <div className="w-full rounded-t-2xl bg-white px-5 pb-6 pt-4 shadow-2xl">
+              {/* drag handle */}
+              <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-200" />
+
+              <h3 className="text-center text-base font-semibold text-gray-900">Upload a Photo</h3>
+              <p className="mt-1 text-center text-xs text-gray-500">
+                Please upload or take a photo to continue, or choose Maybe Later to skip.
+              </p>
+
+              {isModalUploading ? (
+                <div className="flex flex-col items-center gap-2 py-8">
+                  <Loader2 size={32} className="animate-spin text-blue-600" />
+                  <p className="text-sm text-gray-500">Uploading photo…</p>
+                </div>
+              ) : (
+                <>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    {/* Upload from gallery */}
+                    <button
+                      type="button"
+                      onClick={() => modalUploadRef.current?.click()}
+                      className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-4 transition-colors hover:border-blue-300 hover:bg-blue-50"
+                    >
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                        <ImageIcon size={20} className="text-blue-600" />
+                      </div>
+                      <span className="text-xs font-medium text-gray-700">Upload Photo</span>
+                    </button>
+
+                    {/* Take photo with camera */}
+                    <button
+                      type="button"
+                      onClick={() => modalCameraRef.current?.click()}
+                      className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-4 transition-colors hover:border-blue-300 hover:bg-blue-50"
+                    >
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                        <Camera size={20} className="text-blue-600" />
+                      </div>
+                      <span className="text-xs font-medium text-gray-700">Take Photo</span>
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleModalSkip}
+                    className="mt-4 w-full rounded-xl py-2.5 text-sm text-gray-400 transition-colors hover:text-gray-600"
+                  >
+                    Maybe Later
+                  </button>
+                </>
+              )}
+
+              {/* Hidden file inputs for modal */}
+              <input
+                ref={modalUploadRef}
+                type="file"
+                className="hidden"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleModalFileSelect}
+              />
+              <input
+                ref={modalCameraRef}
+                type="file"
+                className="hidden"
+                accept="image/jpeg,image/png,image/webp"
+                capture="environment"
+                onChange={handleModalFileSelect}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Input bar */}
         <form onSubmit={handleSend} className="shrink-0 border-t border-gray-200 p-3">
