@@ -3,6 +3,7 @@ import { Download, Eye, ImageOff, Loader2, RefreshCw, Trash2, X } from 'lucide-r
 import Button from '../Button';
 import leadService from '../../services/leadService';
 import { API_BASE_URL } from '../../services/api';
+import AuthImage, { downloadAuthFile } from '../AuthImage';
 
 const resolveAttachmentUrl = (url) => (url?.startsWith('/') ? `${API_BASE_URL}${url}` : url || '');
 
@@ -113,7 +114,7 @@ export default function LeadAttachmentsPanel({ leadId, title = 'Attachments' }) 
                     onClick={() => setPreviewItem(attachment)}
                     className="block w-full bg-slate-100"
                   >
-                    <img
+                    <AuthImage
                       src={resolvedUrl}
                       alt={attachment.name}
                       className="h-40 w-full object-cover"
@@ -130,15 +131,14 @@ export default function LeadAttachmentsPanel({ leadId, title = 'Attachments' }) 
                         <Eye className="h-3.5 w-3.5" />
                         Preview
                       </Button>
-                      <a
-                        href={resolvedUrl}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => downloadAuthFile(resolvedUrl, attachment.name).catch(() => setError('Download failed'))}
                         className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-blue-500 bg-white px-3 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-50"
                       >
                         <Download className="h-3.5 w-3.5" />
                         Download
-                      </a>
+                      </button>
                       <Button
                         type="button"
                         variant="ghost"
@@ -172,7 +172,7 @@ export default function LeadAttachmentsPanel({ leadId, title = 'Attachments' }) 
             </button>
             <div className="grid gap-0 md:grid-cols-[minmax(0,1fr)_280px]">
               <div className="bg-slate-100">
-                <img src={resolveAttachmentUrl(previewItem.url)} alt={previewItem.name} className="max-h-[75vh] w-full object-contain" />
+                <AuthImage src={resolveAttachmentUrl(previewItem.url)} alt={previewItem.name} className="max-h-[75vh] w-full object-contain" />
               </div>
               <div className="flex flex-col justify-between gap-6 p-6">
                 <div>
@@ -181,15 +181,14 @@ export default function LeadAttachmentsPanel({ leadId, title = 'Attachments' }) 
                   <p className="mt-2 text-sm text-slate-500">Uploaded {formatAttachmentDate(previewItem.uploaded_at)}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <a
-                    href={resolveAttachmentUrl(previewItem.url)}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => downloadAuthFile(resolveAttachmentUrl(previewItem.url), previewItem.name).catch(() => setError('Download failed'))}
                     className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
                   >
                     <Download className="h-4 w-4" />
                     Download full image
-                  </a>
+                  </button>
                   <Button type="button" variant="secondary" className="gap-2" onClick={() => setPreviewItem(null)}>
                     Close
                   </Button>

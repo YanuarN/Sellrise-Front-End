@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X, RotateCcw, AlertTriangle, Send, Bot, User, Loader2, Paperclip } from 'lucide-react';
 import { Button } from '../Button';
 import api, { API_BASE_URL } from '../../services/api';
+import AuthImage from '../AuthImage';
 import { domainService, scenarioService, workspaceService } from '../../services';
 
 const MAX_ATTACHMENTS = 3;
@@ -454,7 +455,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
                 {Array.isArray(message.attachmentUrls) && message.attachmentUrls.length > 0 && (
                   <div className="mb-2 grid grid-cols-2 gap-2">
                     {message.attachmentUrls.map((attachmentUrl) => (
-                      <img
+                      <AuthImage
                         key={attachmentUrl}
                         src={resolveAttachmentUrl(attachmentUrl)}
                         alt="Attachment"
@@ -518,7 +519,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
               <div className="grid grid-cols-3 gap-2">
                 {pendingAttachments.map((attachmentUrl, index) => (
                   <div key={attachmentUrl} className="relative overflow-hidden rounded-lg border border-gray-200 bg-white">
-                    <img
+                    <AuthImage
                       src={resolveAttachmentUrl(attachmentUrl)}
                       alt={`Preview ${index + 1}`}
                       className="h-16 w-full object-cover"

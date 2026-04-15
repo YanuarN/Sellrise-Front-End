@@ -7,6 +7,7 @@ import {
 import { Button, Input, Badge, LeadAttachmentsPanel, PageHeader } from '../../components';
 import leadService from '../../services/leadService';
 import { API_BASE_URL } from '../../services/api';
+import AuthImage from '../../components/AuthImage';
 import useAuthStore from '../../stores/authStore';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -147,7 +148,7 @@ function Transcript({ events }) {
                             {atts && atts.length > 0 && (
                                 <div className="mb-2 space-y-2">
                                     {atts.map((url, i) => (
-                                        <img key={i} src={url.startsWith('/') ? `${API_BASE_URL}${url}` : url} alt="Attachment" className="max-w-full rounded-lg border border-white/20" />
+                                        <AuthImage key={i} src={url.startsWith('/') ? `${API_BASE_URL}${url}` : url} alt="Attachment" className="max-w-full rounded-lg border border-white/20" />
                                     ))}
                                 </div>
                             )}
