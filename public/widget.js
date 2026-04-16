@@ -27,8 +27,8 @@
     '#sr-bubble:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(37,99,235,.55); }',
     '#sr-badge {',
     '  position: absolute; top: -4px; right: -4px; background: #ef4444;',
-    '  color: #fff; font-size: 10px; font-weight: 700; border-radius: 999px;',
-    '  min-width: 18px; height: 18px; padding: 0 4px;',
+    '  color: #fff; font-size: 16px; font-weight: 700; border-radius: 999px;',
+    '  min-width: 26px; height: 26px; padding: 0 5px;',
     '  display: none; align-items: center; justify-content: center;',
     '}',
     '#sr-panel {',
@@ -227,6 +227,11 @@
     var isUploading = false;
     var pendingAttachments = [];
     var hasShownGreeting = false;
+    var initialUnreadStorageKey = [
+      'sr-initial-unread',
+      workspace || 'default',
+      (w.location && w.location.hostname) || 'unknown'
+    ].join(':');
     var patientServiceConfig = null;    // { enabled, base_url, auth_token }
     var patientId = null;               // Phlastic patient_id from external_identities
     // Guard: prevent photo upload UI from re-triggering once the user has
@@ -248,11 +253,48 @@
     bubble.style.width = bubblePx;
     bubble.style.height = bubblePx;
     bubble.style.background = bubbleColor;
-    bubble.innerHTML = bubbleIcon
+    var badge = el('span', { id: 'sr-badge' });
+    var bubbleClosedMarkup = bubbleIcon
       ? '<span style="font-size:22px;line-height:1">' + escHtml(bubbleIcon) + '</span>'
       : SVG_CHAT;
-    var badge = el('span', { id: 'sr-badge' });
-    bubble.appendChild(badge);
+
+    function rememberInitialUnreadDisplayed() {
+      try {
+        w.sessionStorage.setItem(initialUnreadStorageKey, '1');
+      } catch (storageError) {
+        console.warn('[Sellrise] Could not persist initial unread badge state:', storageError);
+      }
+    }
+
+    function shouldShowInitialUnreadBadge() {
+      try {
+        return w.sessionStorage.getItem(initialUnreadStorageKey) !== '1';
+      } catch (storageError) {
+        return true;
+      }
+    }
+
+    function setUnreadBadge(count) {
+      if (count > 0) {
+        badge.textContent = String(count);
+        badge.style.display = 'flex';
+        return;
+      }
+
+      badge.textContent = '';
+      badge.style.display = 'none';
+    }
+
+    function renderBubbleIcon(showCloseIcon) {
+      bubble.innerHTML = showCloseIcon ? SVG_CLOSE : bubbleClosedMarkup;
+      bubble.appendChild(badge);
+    }
+
+    renderBubbleIcon(false);
+    if (shouldShowInitialUnreadBadge()) {
+      setUnreadBadge(1);
+      rememberInitialUnreadDisplayed();
+    }
 
     /* Panel */
     var panel = el('div', { id: 'sr-panel' });
@@ -695,23 +737,22 @@
       isOpen = !isOpen;
       if (isOpen) {
         panel.classList.add('sr-open');
-        bubble.innerHTML = SVG_CLOSE;
-        badge.style.display = 'none';
+        renderBubbleIcon(true);
+        setUnreadBadge(0);
         if (!leadId) {
           autoCreateLead();
         }
         document.getElementById('sr-input') && document.getElementById('sr-input').focus();
       } else {
         panel.classList.remove('sr-open');
-        bubble.innerHTML = SVG_CHAT + badge.outerHTML;
+        renderBubbleIcon(false);
       }
     });
 
     document.getElementById('sr-close-btn').addEventListener('click', function () {
       isOpen = false;
       panel.classList.remove('sr-open');
-      bubble.innerHTML = SVG_CHAT;
-      bubble.appendChild(badge);
+      renderBubbleIcon(false);
     });
 
     var inputEl = document.getElementById('sr-input');
