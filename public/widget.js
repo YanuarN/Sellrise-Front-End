@@ -144,8 +144,7 @@
     '}',
     '#sr-preview-clear:hover { background: #d1d5db; color: #111827; }',
     /* ── Photo Upload Step (PRD 3) ─────────────────────────────────────── */
-    '.sr-msg-full { max-width: 100% !important; width: 100%; }',
-    '.sr-photo-step { padding: 16px; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb; margin: 4px 0; width: 100%; box-sizing: border-box; }',
+    '.sr-photo-step { padding: 16px; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb; margin: 4px 0; }',
     '.sr-photo-step .sr-photo-prompt { font-size: 13px; color: #374151; margin: 0 0 12px 0; line-height: 1.45; }',
     '.sr-photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }',
     '.sr-photo-slot { position: relative; aspect-ratio: 1; border: 2px dashed #d1d5db; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; background: #fff; transition: border-color .15s, background .15s; overflow: hidden; }',
@@ -171,19 +170,26 @@
     '.sr-photo-btn-skip { background: #e5e7eb; color: #374151; }',
     '.sr-photo-btn-skip:hover { background: #d1d5db; }',
     '.sr-photo-retry-btn { background: none; border: 1px solid #ef4444; color: #ef4444; border-radius: 4px; font-size: 10px; padding: 2px 6px; cursor: pointer; margin-top: 2px; }',
-    /* ── Photo Upload Disclaimer ──────────────────────────────────────── */
-    '.sr-photo-disclaimer { padding: 14px 16px; background: #fffbeb; border-radius: 12px; border: 1px solid #fcd34d; margin: 4px 0; width: 100%; box-sizing: border-box; }',
-    '.sr-photo-disclaimer .sr-disclaimer-icon { font-size: 20px; margin-bottom: 6px; }',
-    '.sr-photo-disclaimer .sr-disclaimer-title { font-size: 13px; font-weight: 700; color: #92400e; margin: 0 0 6px 0; }',
-    '.sr-photo-disclaimer .sr-disclaimer-body { font-size: 12px; color: #78350f; line-height: 1.5; margin: 0 0 12px 0; }',
-    '.sr-photo-disclaimer .sr-disclaimer-actions { display: flex; gap: 8px; }',
-    '.sr-photo-disclaimer .sr-disclaimer-actions button { flex: 1; padding: 9px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: background .15s; }',
-    '.sr-disclaimer-btn-accept { background: #2563eb; color: #fff; }',
-    '.sr-disclaimer-btn-accept:hover { background: #1d4ed8; }',
-    '.sr-disclaimer-btn-decline { background: #e5e7eb; color: #374151; }',
-    '.sr-disclaimer-btn-decline:hover { background: #d1d5db; }',
-    /* ── Multi-slot photo grid ────────────────────────────────────────── */
-    '.sr-slot-counter { font-size: 11px; color: #6b7280; text-align: center; margin-bottom: 8px; }',
+    /* ── Webcam Modal ───────────────────────────────────────────────────── */
+    '#sr-webcam-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.72); z-index: 2147483648; display: flex; align-items: center; justify-content: center; }',
+    '#sr-webcam-inner { background: #fff; border-radius: 14px; padding: 18px; width: 390px; max-width: calc(100vw - 32px); display: flex; flex-direction: column; gap: 12px; }',
+    '#sr-webcam-header { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 600; color: #111827; }',
+    '#sr-webcam-header small { font-size: 11px; font-weight: 400; color: #6b7280; margin-left: 6px; }',
+    '#sr-webcam-cancel-btn { background: none; border: none; font-size: 22px; cursor: pointer; color: #6b7280; line-height: 1; padding: 2px 6px; }',
+    '#sr-webcam-cancel-btn:hover { color: #111827; }',
+    '#sr-webcam-video { width: 100%; border-radius: 8px; background: #111827; display: block; max-height: 220px; object-fit: cover; }',
+    '#sr-webcam-thumbnails { display: flex; gap: 8px; flex-wrap: wrap; min-height: 10px; }',
+    '.sr-webcam-thumb { position: relative; width: 64px; height: 64px; border-radius: 6px; overflow: hidden; border: 2px solid #2563eb; }',
+    '.sr-webcam-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }',
+    '.sr-webcam-thumb-num { position: absolute; bottom: 2px; right: 3px; font-size: 10px; color: #fff; background: rgba(0,0,0,.55); border-radius: 2px; padding: 0 3px; }',
+    '#sr-webcam-status { font-size: 12px; color: #6b7280; text-align: center; padding: 2px 0; }',
+    '#sr-webcam-footer { display: flex; gap: 8px; }',
+    '#sr-webcam-capture-btn { flex: 1; padding: 10px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; }',
+    '#sr-webcam-capture-btn:hover:not(:disabled) { background: #1d4ed8; }',
+    '#sr-webcam-capture-btn:disabled { background: #93c5fd; cursor: not-allowed; }',
+    '#sr-webcam-done-btn { flex: 1; padding: 10px; background: #10b981; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; }',
+    '#sr-webcam-done-btn:hover:not(:disabled) { background: #059669; }',
+    '#sr-webcam-done-btn:disabled { background: #6ee7b7; cursor: not-allowed; }',
   ].join('\n');
 
   /* ── Helpers ─────────────────────────────────────────────────────────── */
@@ -240,6 +246,7 @@
     var isSending = false;
     var isUploading = false;
     var pendingAttachments = [];
+    var attachmentPreviewUrls = {};
     var hasShownGreeting = false;
     var initialUnreadStorageKey = [
       'sr-initial-unread',
@@ -366,6 +373,12 @@
     }
 
     function resolveAttachmentUrl(url) {
+      if (url && typeof url === 'object') {
+        url = url.preview_url || url.url || url.path || '';
+      }
+      if (url && attachmentPreviewUrls[url]) {
+        return attachmentPreviewUrls[url];
+      }
       var host = apiBase === '/' ? '' : apiBase;
       return url && url.charAt(0) === '/' ? host + url : (url || '');
     }
@@ -450,253 +463,268 @@
     }
 
     function renderPhotoUploadStep(stepConfig, onComplete) {
-      /* ── Block the input row until this step fully resolves ─────────── */
-      function blockInput() {
-        var inp = document.getElementById('sr-input');
-        var send = document.getElementById('sr-send');
-        var attach = document.getElementById('sr-attach');
-        if (inp) { inp.disabled = true; inp.placeholder = 'Please respond to the photo request above…'; }
-        if (send) send.disabled = true;
-        if (attach) attach.disabled = true;
-      }
-      function unblockInput() {
-        var inp = document.getElementById('sr-input');
-        var send = document.getElementById('sr-send');
-        var attach = document.getElementById('sr-attach');
-        if (inp) { inp.disabled = false; inp.placeholder = 'Type a message…'; }
-        if (send) send.disabled = false;
-        if (attach) attach.disabled = false;
-      }
-      /* Wrap onComplete so input is always unblocked when the step ends */
-      var originalOnComplete = onComplete;
-      onComplete = function(urls) { unblockInput(); originalOnComplete(urls); };
+      var wrapper = el('div', { class: 'sr-msg bot' });
+      var stepEl = el('div', { class: 'sr-photo-step' });
+      var stepDone = false;
+        var selectedAction = null;
 
-      blockInput();
+      /* hidden multi-file input */
+      var inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'image/jpeg,image/png,image/heic,image/*';
+      inp.multiple = true;
+      inp.style.display = 'none';
+      document.body.appendChild(inp);
 
-      /* ── Step 1: show disclaimer first ──────────────────────────────── */
-      var disclaimerWrapper = el('div', { class: 'sr-msg bot sr-msg-full' });
-      var disclaimerEl = el('div', { class: 'sr-photo-disclaimer' });
-      disclaimerEl.innerHTML =
-        '<div class="sr-disclaimer-icon">📷</div>' +
-        '<p class="sr-disclaimer-title">Photo Upload Permission</p>' +
-        '<p class="sr-disclaimer-body">' +
-          'You will be asked to upload up to <strong>3 photos</strong> to assist with your consultation. ' +
-          'Your photos will be handled securely and used solely for medical analysis by our team. ' +
-          'We will not share your photos with any third party without your consent.' +
-        '</p>' +
-        '<div class="sr-disclaimer-actions">' +
-          '<button class="sr-disclaimer-btn-accept" id="sr-disclaimer-accept">I Agree &amp; Continue</button>' +
-          '<button class="sr-disclaimer-btn-decline" id="sr-disclaimer-decline">Maybe Later</button>' +
-        '</div>';
-
-      disclaimerWrapper.appendChild(disclaimerEl);
-      messagesEl.appendChild(disclaimerWrapper);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-
-      var declineBtn = disclaimerEl.querySelector('#sr-disclaimer-decline');
-      var acceptBtn = disclaimerEl.querySelector('#sr-disclaimer-accept');
-
-      function lockDisclaimerButtons() {
-        [acceptBtn, declineBtn].forEach(function(btn) {
-          if (!btn) return;
-          btn.disabled = true;
-          btn.style.opacity = '0.5';
-          btn.style.cursor = 'not-allowed';
-          btn.style.pointerEvents = 'none';
-        });
+      function cleanupInp() {
+        if (inp.parentNode) inp.parentNode.removeChild(inp);
       }
 
-      if (declineBtn) {
-        declineBtn.addEventListener('click', function() {
-          lockDisclaimerButtons();
-          onComplete([]);
-        });
+      /* disable every button inside the step so user cannot click twice */
+      function disableAllBtns() {
+        var btns = stepEl.querySelectorAll('button');
+        for (var bi = 0; bi < btns.length; bi++) { btns[bi].disabled = true; }
       }
 
-      if (acceptBtn) {
-        acceptBtn.addEventListener('click', function() {
-          lockDisclaimerButtons();
-          renderPhotoSlots();
-        });
+        function lockSelection(actionName) {
+          if (selectedAction) return false;
+          selectedAction = actionName;
+          disableAllBtns();
+          return true;
+        }
+
+      function complete(urls) {
+        if (stepDone) return;
+        stepDone = true;
+        disableAllBtns();
+        cleanupInp();
+        onComplete(urls);
       }
 
-      /* ── Step 2: show multi-slot upload UI after disclaimer accepted ── */
-      function renderPhotoSlots() {
-        var MAX_SLOTS = 3;
-        var slotFiles  = [null, null, null]; // File objects per slot
-        var slotUrls   = [null, null, null]; // Uploaded URLs per slot
-        var slotStates = ['empty', 'empty', 'empty']; // empty | uploading | done | error
+      function showUploadingState() {
+        var actionsEl = stepEl.querySelector('.sr-photo-actions');
+        if (actionsEl) actionsEl.innerHTML = '<span style="opacity:0.7;font-size:13px">Uploading photos…</span>';
+      }
 
-        var wrapper = el('div', { class: 'sr-msg bot sr-msg-full' });
-        var stepEl  = el('div', { class: 'sr-photo-step' });
-
-        function countUploaded() {
-          return slotUrls.filter(function(u) { return !!u; }).length;
+      function showErrorState() {
+        var actionsEl = stepEl.querySelector('.sr-photo-actions');
+        if (actionsEl) {
+          actionsEl.innerHTML =
+            '<span style="color:#ef4444;font-size:12px">Upload failed. </span>' +
+            '<button class="sr-photo-btn-skip" id="sr-photo-skip-err">Maybe Later</button>';
+          var errSkip = actionsEl.querySelector('#sr-photo-skip-err');
+          if (errSkip) errSkip.addEventListener('click', function() { complete([]); });
         }
+      }
 
-        function renderStep() {
-          var slotsHtml = '';
-          for (var i = 0; i < MAX_SLOTS; i++) {
-            var state = slotStates[i];
-            var inner = '';
-            if (state === 'empty') {
-              inner = '<span class="sr-slot-icon">+</span><span class="sr-slot-label">Photo ' + (i + 1) + '</span>';
-            } else if (state === 'uploading') {
-              inner = '<span class="sr-slot-icon">⏳</span><span class="sr-slot-label">Uploading…</span><div class="sr-slot-progress" style="width:60%"></div>';
-            } else if (state === 'done') {
-              inner = '<img src="' + escHtml(resolveAttachmentUrl(slotUrls[i])) + '" alt="Photo ' + (i + 1) + '" />' +
-                      '<button class="sr-slot-remove" data-slot="' + i + '" title="Remove">&times;</button>' +
-                      '<span class="sr-slot-status">✅</span>';
-            } else if (state === 'error') {
-              inner = '<span class="sr-slot-icon" style="color:#ef4444">⚠️</span>' +
-                      '<span class="sr-slot-label" style="color:#ef4444">Failed</span>' +
-                      '<button class="sr-photo-retry-btn" data-slot="' + i + '">Retry</button>';
-            }
-            var extraClass = (state === 'done' || state === 'uploading') ? ' has-photo' : '';
-            slotsHtml += '<div class="sr-photo-slot' + extraClass + '" data-slot="' + i + '">' + inner + '</div>';
+      /* upload up to 3 files sequentially and call complete() with all URLs */
+      function uploadFiles(files) {
+        showUploadingState();
+        var host = apiBase === '/' ? '' : apiBase;
+        var sliced = Array.prototype.slice.call(files, 0, 3);
+        var collected = [];
+
+        function uploadOne(idx) {
+          if (idx >= sliced.length) {
+            var allUrls = [];
+            for (var i = 0; i < collected.length; i++) { allUrls = allUrls.concat(collected[i]); }
+            complete(allUrls.slice(0, 3));
+            return;
           }
-
-          var uploaded = countUploaded();
-          var canSubmit = uploaded > 0 && slotStates.indexOf('uploading') === -1;
-
-          stepEl.innerHTML =
-            '<p class="sr-photo-prompt">Select up to 3 photos (at least 1 required)</p>' +
-            '<p class="sr-slot-counter">Uploaded: ' + uploaded + ' / ' + MAX_SLOTS + '</p>' +
-            '<div class="sr-photo-grid">' + slotsHtml + '</div>' +
-            '<div class="sr-photo-actions">' +
-              '<button class="sr-photo-btn-upload" id="sr-photo-submit"' + (canSubmit ? '' : ' disabled') + '>Send Photos (' + uploaded + ')</button>' +
-              '<button class="sr-photo-btn-skip" id="sr-photo-skip">Maybe Later</button>' +
-            '</div>';
-
-          bindSlotEvents();
-        }
-
-        function bindSlotEvents() {
-          /* click empty slot → pick file */
-          var slots = stepEl.querySelectorAll('.sr-photo-slot');
-          for (var si = 0; si < slots.length; si++) {
-            (function(slotEl) {
-              var idx = Number(slotEl.getAttribute('data-slot'));
-              if (slotStates[idx] === 'empty') {
-                slotEl.addEventListener('click', function() { openPicker(idx, false); });
-              }
-            })(slots[si]);
-          }
-
-          /* retry button */
-          var retryBtns = stepEl.querySelectorAll('.sr-photo-retry-btn');
-          for (var ri = 0; ri < retryBtns.length; ri++) {
-            (function(btn) {
-              var idx = Number(btn.getAttribute('data-slot'));
-              btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                if (slotFiles[idx]) {
-                  doUploadSlot(idx, slotFiles[idx]);
-                } else {
-                  openPicker(idx, false);
-                }
-              });
-            })(retryBtns[ri]);
-          }
-
-          /* remove button */
-          var removeBtns = stepEl.querySelectorAll('.sr-slot-remove');
-          for (var rmi = 0; rmi < removeBtns.length; rmi++) {
-            (function(btn) {
-              var idx = Number(btn.getAttribute('data-slot'));
-              btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                slotFiles[idx]  = null;
-                slotUrls[idx]   = null;
-                slotStates[idx] = 'empty';
-                renderStep();
-              });
-            })(removeBtns[rmi]);
-          }
-
-          /* submit */
-          var submitBtn = stepEl.querySelector('#sr-photo-submit');
-          if (submitBtn) {
-            submitBtn.addEventListener('click', function() {
-              lockSlotUI();
-              var urls = slotUrls.filter(function(u) { return !!u; });
-              onComplete(urls);
-            });
-          }
-
-          /* skip */
-          var skipBtn = stepEl.querySelector('#sr-photo-skip');
-          if (skipBtn) {
-            skipBtn.addEventListener('click', function() {
-              lockSlotUI();
-              onComplete([]);
-            });
-          }
-        }
-
-        /* Lock the entire slot UI so no button can be re-clicked */
-        function lockSlotUI() {
-          var allBtns = stepEl.querySelectorAll('button');
-          for (var bi = 0; bi < allBtns.length; bi++) {
-            allBtns[bi].disabled = true;
-            allBtns[bi].style.opacity = '0.5';
-            allBtns[bi].style.cursor = 'not-allowed';
-            allBtns[bi].style.pointerEvents = 'none';
-          }
-          var allSlots = stepEl.querySelectorAll('.sr-photo-slot');
-          for (var sli = 0; sli < allSlots.length; sli++) {
-            allSlots[sli].style.pointerEvents = 'none';
-            allSlots[sli].style.cursor = 'default';
-          }
-        }
-
-        function openPicker(slotIdx, useCamera) {
-          var inp = document.createElement('input');
-          inp.type = 'file';
-          inp.accept = 'image/jpeg,image/png,image/heic,image/*';
-          if (useCamera) inp.setAttribute('capture', 'environment');
-          inp.style.display = 'none';
-          document.body.appendChild(inp);
-          inp.addEventListener('change', function(e) {
-            var file = e.target.files && e.target.files[0];
-            if (file) {
-              slotFiles[slotIdx] = file;
-              doUploadSlot(slotIdx, file);
-            }
-            if (inp.parentNode) inp.parentNode.removeChild(inp);
-          });
-          inp.click();
-        }
-
-        function doUploadSlot(slotIdx, file) {
-          slotStates[slotIdx] = 'uploading';
-          slotUrls[slotIdx]   = null;
-          renderStep();
-
-          var host = apiBase === '/' ? '' : apiBase;
           var fd = new FormData();
-          fd.append('file', file);
+          fd.append('file', sliced[idx]);
           fd.append('workspace_id', workspace);
           fetch(host + '/v1/widget/upload', { method: 'POST', body: fd })
             .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('Upload failed')); })
             .then(function(res) {
-              var files = normalizeUploadedFiles(res);
-              var url = files.length ? (files[0].url || files[0]) : null;
-              slotUrls[slotIdx]   = url;
-              slotStates[slotIdx] = url ? 'done' : 'error';
-              renderStep();
+              var norm = normalizeUploadedFiles(res);
+              var uploadedUrls = norm.map(function(f) { return f.url || f; });
+              for (var previewIndex = 0; previewIndex < uploadedUrls.length; previewIndex += 1) {
+                if (uploadedUrls[previewIndex]) {
+                  attachmentPreviewUrls[uploadedUrls[previewIndex]] = URL.createObjectURL(sliced[idx]);
+                }
+              }
+              collected.push(uploadedUrls);
+              uploadOne(idx + 1);
             })
-            .catch(function() {
-              slotStates[slotIdx] = 'error';
-              renderStep();
-            });
+            .catch(function() { showErrorState(); });
         }
-
-        renderStep();
-        wrapper.appendChild(stepEl);
-        messagesEl.appendChild(wrapper);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+        uploadOne(0);
       }
+
+      stepEl.innerHTML =
+        '<p class="sr-photo-prompt">Please share up to 3 photos to help us better understand your needs.</p>' +
+        '<div class="sr-photo-actions">' +
+          '<button class="sr-photo-btn-upload" id="sr-photo-btn-upload">Upload Photos</button>' +
+          '<button class="sr-photo-btn-upload" id="sr-photo-btn-camera">Take Photo</button>' +
+          '<button class="sr-photo-btn-skip" id="sr-photo-btn-skip">Maybe Later</button>' +
+        '</div>';
+
+      /* ── Upload button: permission confirm then file picker ── */
+      var uploadBtn = stepEl.querySelector('#sr-photo-btn-upload');
+      if (uploadBtn) {
+        uploadBtn.addEventListener('click', function() {
+          var confirmed = window.confirm(
+            'This action will open your file system so you can select photos from your device.\n\n' +
+            'Click OK to allow access to your photo library, or Cancel to go back.'
+          );
+          if (!confirmed) return;
+            if (!lockSelection('upload')) return;
+          inp.onchange = function(e) {
+            var chosen = Array.prototype.slice.call(e.target.files || []);
+            if (!chosen.length) return;
+            uploadFiles(chosen);
+          };
+            if (typeof inp.showPicker === 'function') {
+              inp.showPicker();
+            } else {
+              inp.click();
+            }
+        });
+      }
+
+      /* ── Camera button: open webcam modal ── */
+      var cameraBtn = stepEl.querySelector('#sr-photo-btn-camera');
+      if (cameraBtn) {
+        cameraBtn.addEventListener('click', function() {
+            if (!lockSelection('camera')) return;
+          openWebcamModal(function(capturedFiles) {
+            if (!capturedFiles || !capturedFiles.length) { complete([]); return; }
+            uploadFiles(capturedFiles);
+          });
+        });
+      }
+
+      var skipBtn = stepEl.querySelector('#sr-photo-btn-skip');
+        if (skipBtn) skipBtn.addEventListener('click', function() {
+          if (!lockSelection('skip')) return;
+          complete([]);
+        });
+
+      wrapper.appendChild(stepEl);
+      messagesEl.appendChild(wrapper);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    /* ── Webcam modal (getUserMedia) ─────────────────────────────────────── */
+    function openWebcamModal(callback) {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Camera access is not supported by your browser. Please use the Upload option instead.');
+        callback([]);
+        return;
+      }
+
+      var capturedBlobs = [];
+      var thumbUrls = [];
+      var stream = null;
+      var modalDone = false;
+
+      var modal = document.createElement('div');
+      modal.id = 'sr-webcam-modal';
+      modal.innerHTML =
+        '<div id="sr-webcam-inner">' +
+          '<div id="sr-webcam-header">' +
+            '<span>Take Photo <small id="sr-webcam-count">(0 / 3 captured)</small></span>' +
+            '<button id="sr-webcam-cancel-btn" aria-label="Close">&times;</button>' +
+          '</div>' +
+          '<video id="sr-webcam-video" autoplay playsinline muted></video>' +
+          '<canvas id="sr-webcam-canvas" style="display:none"></canvas>' +
+          '<div id="sr-webcam-thumbnails"></div>' +
+          '<div id="sr-webcam-status">Starting camera…</div>' +
+          '<div id="sr-webcam-footer">' +
+            '<button id="sr-webcam-capture-btn" disabled>Capture</button>' +
+            '<button id="sr-webcam-done-btn" disabled>Use Photos</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+
+      var videoEl  = modal.querySelector('#sr-webcam-video');
+      var canvasEl = modal.querySelector('#sr-webcam-canvas');
+      var thumbsEl = modal.querySelector('#sr-webcam-thumbnails');
+      var captureBtn = modal.querySelector('#sr-webcam-capture-btn');
+      var doneBtn    = modal.querySelector('#sr-webcam-done-btn');
+      var cancelBtn  = modal.querySelector('#sr-webcam-cancel-btn');
+      var countEl    = modal.querySelector('#sr-webcam-count');
+      var statusEl   = modal.querySelector('#sr-webcam-status');
+
+      function stopStream() {
+        if (stream) { stream.getTracks().forEach(function(t) { t.stop(); }); stream = null; }
+      }
+      function revokeThumbUrls() {
+        for (var ui = 0; ui < thumbUrls.length; ui++) {
+          try { URL.revokeObjectURL(thumbUrls[ui]); } catch(e) {}
+        }
+        thumbUrls = [];
+      }
+      function closeModal() {
+        stopStream(); revokeThumbUrls();
+        if (modal.parentNode) modal.parentNode.removeChild(modal);
+      }
+      function done(files) {
+        if (modalDone) return;
+        modalDone = true;
+        closeModal();
+        callback(files);
+      }
+
+      function updateUI() {
+        var n = capturedBlobs.length;
+        countEl.textContent = '(' + n + ' / 3 captured)';
+        captureBtn.disabled = n >= 3;
+        doneBtn.disabled    = n === 0;
+        statusEl.textContent = n === 0
+          ? 'Click Capture to take a photo'
+          : n < 3
+            ? 'Photo ' + n + ' captured – take more or click Use Photos'
+            : '3 photos captured – click Use Photos to continue';
+        revokeThumbUrls();
+        thumbsEl.innerHTML = '';
+        for (var ti = 0; ti < capturedBlobs.length; ti++) {
+          var url = URL.createObjectURL(capturedBlobs[ti]);
+          thumbUrls.push(url);
+          var div = document.createElement('div');
+          div.className = 'sr-webcam-thumb';
+          div.innerHTML =
+            '<img src="' + url + '" alt="Photo ' + (ti + 1) + '" />' +
+            '<span class="sr-webcam-thumb-num">' + (ti + 1) + '</span>';
+          thumbsEl.appendChild(div);
+        }
+      }
+
+      /* request front-facing camera (user-facing = laptop webcam) */
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+        .then(function(s) {
+          stream = s;
+          videoEl.srcObject = s;
+          captureBtn.disabled = false;
+          statusEl.textContent = 'Click Capture to take a photo';
+        })
+        .catch(function(err) {
+          closeModal();
+          alert('Could not access webcam: ' + (err.message || 'Permission denied') + '.\nPlease use the Upload option instead.');
+          callback([]);
+        });
+
+      captureBtn.addEventListener('click', function() {
+        if (capturedBlobs.length >= 3) return;
+        var vw = videoEl.videoWidth  || 640;
+        var vh = videoEl.videoHeight || 480;
+        canvasEl.width  = vw;
+        canvasEl.height = vh;
+        canvasEl.getContext('2d').drawImage(videoEl, 0, 0, vw, vh);
+        canvasEl.toBlob(function(blob) {
+          if (blob) { capturedBlobs.push(blob); updateUI(); }
+        }, 'image/jpeg', 0.9);
+      });
+
+      doneBtn.addEventListener('click', function() {
+        var files = capturedBlobs.map(function(blob, idx) {
+          return new File([blob], 'webcam-photo-' + (idx + 1) + '.jpg', { type: 'image/jpeg' });
+        });
+        done(files);
+      });
+
+      cancelBtn.addEventListener('click', function() { done([]); });
     }
 
     var typingEl = null;
@@ -717,6 +745,20 @@
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
+      function sendPhotoStepResponse(text, urls) {
+        function trySend() {
+          if (isSending || isUploading || !leadId) {
+            setTimeout(trySend, 100);
+            return;
+          }
+
+          pendingAttachments = Array.isArray(urls) ? urls.slice(0, 3) : [];
+          sendMessage(text);
+        }
+
+        trySend();
+      }
+
     function postJSON(url, body) {
       return fetch(url, {
         method: 'POST',
@@ -730,7 +772,7 @@
 
     /* ── Anonymous lead auto-creation ────────────────────────────────────── */
     function autoCreateLead() {
-      return postJSON(apiBase + '/v1/widget/lead', {
+      postJSON(apiBase + '/v1/widget/lead', {
         workspace_id: workspace,
         session_id: sessionId,
         email: 'visitor-' + sessionId + '@widget.local',
@@ -738,11 +780,15 @@
       })
         .then(function (res) {
           leadId = res.lead_id;
-          return res;
+          hasShownGreeting = false;
+          /* Show initial greeting from the scenario */
+          var greeting = getGreetingFromScenario('there');
+          addMessage('bot', greeting);
+          hasShownGreeting = true;
+          document.getElementById('sr-input') && document.getElementById('sr-input').focus();
         })
         .catch(function (err) {
           console.warn('[Sellrise] Could not initialize chat session:', err.message);
-          throw err;
         });
     }
 
@@ -797,25 +843,7 @@
 
     /* ── Message sending ───────────────────────────────────────────────── */
     function sendMessage(text) {
-      if ((!text.trim() && !pendingAttachments.length) || isSending || isUploading) return;
-
-      if (!leadId) {
-        isSending = true;
-        document.getElementById('sr-send').disabled = true;
-
-        autoCreateLead()
-          .then(function () {
-            isSending = false;
-            sendMessage(text);
-          })
-          .catch(function (err) {
-            isSending = false;
-            document.getElementById('sr-send').disabled = false;
-            showError('Error: ' + (err.message || 'Could not initialize chat session.'));
-          });
-        return;
-      }
-
+      if ((!text.trim() && !pendingAttachments.length) || isSending || isUploading || !leadId) return;
       isSending = true;
       var isFirstTurn = !hasShownGreeting;
       var curAttachments = pendingAttachments.slice();
@@ -851,13 +879,16 @@
           addMessage('bot', res.bot_reply || '(no reply)');
 
           /* ── Check for photo_upload stage (stage_type detection) ───── */
-          // Primary: check current_stage → stage_type in scenario config (deterministic)
-          // Fallback: check res.actions for backwards compatibility
+          // Path 1: current_stage → stage_type in scenario config (deterministic, no keyword gate)
+          // Path 2: res.actions for backwards compatibility
+          // Path 3: keyword-only fallback when backend returns neither current_stage nor actions
           var shouldShowPhotoUpload = false;
           var photoStepConfig = {};
 
           if (!photoUploadTriggered) {
             var currentStageId = res.current_stage;
+
+            // Path 1: stage_type match — keyword gate removed; stage match is sufficient
             if (currentStageId && scenario && scenario.stages) {
               var stageList = Array.isArray(scenario.stages)
                 ? scenario.stages
@@ -870,25 +901,16 @@
                 }
               }
               if (matchedStage && matchedStage.stage_type === 'photo_upload') {
-                // Only trigger when bot's reply for THIS turn actually asks for photos,
-                // meaning the LLM was genuinely prompted by the photo stage.
-                var botLower = (res.bot_reply || '').toLowerCase();
-                var mentionsPhoto = ['photo', 'picture', 'image', 'upload', 'foto'].some(function(kw) {
-                  return botLower.indexOf(kw) !== -1;
-                });
-                if (mentionsPhoto) {
-                  shouldShowPhotoUpload = true;
-                  // Get upload config from actions_catalog if available
-                  var catalog = scenario.actions_catalog || {};
-                  var catalogEntry = catalog['#photo_upload'];
-                  photoStepConfig = (catalogEntry && catalogEntry.payload_schema && catalogEntry.payload_schema.config)
-                    ? catalogEntry.payload_schema.config
-                    : {};
-                }
+                shouldShowPhotoUpload = true;
+                var catalog = scenario.actions_catalog || {};
+                var catalogEntry = catalog['#photo_upload'];
+                photoStepConfig = (catalogEntry && catalogEntry.payload_schema && catalogEntry.payload_schema.config)
+                  ? catalogEntry.payload_schema.config
+                  : {};
               }
             }
 
-            // Fallback 2: LLM actions (legacy path, kept for backward compatibility)
+            // Path 2: LLM actions (legacy path, kept for backward compatibility)
             if (!shouldShowPhotoUpload) {
               var actions = res.actions || [];
               for (var ai = 0; ai < actions.length; ai++) {
@@ -901,17 +923,18 @@
               }
             }
 
-            // Fallback 3: pure keyword detection on bot reply — fires when neither
-            // stage nor action data is present but the bot is clearly asking for photos.
+            // Path 3: keyword-only fallback — catch cases where backend returns neither
+            // current_stage nor actions but the bot reply clearly asks for photos
             if (!shouldShowPhotoUpload) {
-              var botReplyLower = (res.bot_reply || '').toLowerCase();
-              var photoKeywords = ['photo', 'picture', 'image', 'upload', 'foto'];
-              var replyMentionsPhoto = photoKeywords.some(function(kw) {
-                return botReplyLower.indexOf(kw) !== -1;
+              var botLower3 = (res.bot_reply || '').toLowerCase();
+              var photoKeywords = ['share photos', 'share a photo', 'upload photo', 'send photo',
+                                   'share your photo', 'optional photo', 'share foto', 'kirim foto',
+                                   'upload foto', 'foto sekarang'];
+              var hasBotPhotoIntent = photoKeywords.some(function(kw) {
+                return botLower3.indexOf(kw) !== -1;
               });
-              if (replyMentionsPhoto) {
+              if (hasBotPhotoIntent) {
                 shouldShowPhotoUpload = true;
-                photoStepConfig = {};
               }
             }
           }
@@ -922,9 +945,9 @@
             setTimeout(function() {
               renderPhotoUploadStep(photoStepConfig, function(urls) {
                 if (urls.length > 0) {
-                  sendMessage("I've uploaded my photos");
+                    sendPhotoStepResponse("I've uploaded my photos", urls);
                 } else {
-                  sendMessage('maybe later');
+                    sendPhotoStepResponse('maybe later', []);
                 }
               });
             }, 1200);
@@ -948,9 +971,8 @@
         panel.classList.add('sr-open');
         renderBubbleIcon(true);
         setUnreadBadge(0);
-        if (!hasShownGreeting) {
-          addMessage('bot', getGreetingFromScenario('there'));
-          hasShownGreeting = true;
+        if (!leadId) {
+          autoCreateLead();
         }
         document.getElementById('sr-input') && document.getElementById('sr-input').focus();
       } else {
@@ -1042,6 +1064,12 @@
       .then(function(data) {
           var uploadedFiles = normalizeUploadedFiles(data);
           if (uploadedFiles.length) {
+            for (var uploadedIndex = 0; uploadedIndex < uploadedFiles.length; uploadedIndex += 1) {
+              var uploadedUrl = uploadedFiles[uploadedIndex] && uploadedFiles[uploadedIndex].url;
+              if (uploadedUrl && selectedFiles[uploadedIndex]) {
+                attachmentPreviewUrls[uploadedUrl] = URL.createObjectURL(selectedFiles[uploadedIndex]);
+              }
+            }
             pendingAttachments = pendingAttachments.concat(
               uploadedFiles.map(function (item) { return item.url; }).filter(Boolean)
             ).slice(0, 3);
