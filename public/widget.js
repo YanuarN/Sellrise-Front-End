@@ -144,7 +144,8 @@
     '}',
     '#sr-preview-clear:hover { background: #d1d5db; color: #111827; }',
     /* ── Photo Upload Step (PRD 3) ─────────────────────────────────────── */
-    '.sr-photo-step { padding: 16px; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb; margin: 4px 0; }',
+    '.sr-msg-full { max-width: 100% !important; width: 100%; }',
+    '.sr-photo-step { padding: 16px; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb; margin: 4px 0; width: 100%; box-sizing: border-box; }',
     '.sr-photo-step .sr-photo-prompt { font-size: 13px; color: #374151; margin: 0 0 12px 0; line-height: 1.45; }',
     '.sr-photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }',
     '.sr-photo-slot { position: relative; aspect-ratio: 1; border: 2px dashed #d1d5db; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; background: #fff; transition: border-color .15s, background .15s; overflow: hidden; }',
@@ -170,6 +171,19 @@
     '.sr-photo-btn-skip { background: #e5e7eb; color: #374151; }',
     '.sr-photo-btn-skip:hover { background: #d1d5db; }',
     '.sr-photo-retry-btn { background: none; border: 1px solid #ef4444; color: #ef4444; border-radius: 4px; font-size: 10px; padding: 2px 6px; cursor: pointer; margin-top: 2px; }',
+    /* ── Photo Upload Disclaimer ──────────────────────────────────────── */
+    '.sr-photo-disclaimer { padding: 14px 16px; background: #fffbeb; border-radius: 12px; border: 1px solid #fcd34d; margin: 4px 0; width: 100%; box-sizing: border-box; }',
+    '.sr-photo-disclaimer .sr-disclaimer-icon { font-size: 20px; margin-bottom: 6px; }',
+    '.sr-photo-disclaimer .sr-disclaimer-title { font-size: 13px; font-weight: 700; color: #92400e; margin: 0 0 6px 0; }',
+    '.sr-photo-disclaimer .sr-disclaimer-body { font-size: 12px; color: #78350f; line-height: 1.5; margin: 0 0 12px 0; }',
+    '.sr-photo-disclaimer .sr-disclaimer-actions { display: flex; gap: 8px; }',
+    '.sr-photo-disclaimer .sr-disclaimer-actions button { flex: 1; padding: 9px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: background .15s; }',
+    '.sr-disclaimer-btn-accept { background: #2563eb; color: #fff; }',
+    '.sr-disclaimer-btn-accept:hover { background: #1d4ed8; }',
+    '.sr-disclaimer-btn-decline { background: #e5e7eb; color: #374151; }',
+    '.sr-disclaimer-btn-decline:hover { background: #d1d5db; }',
+    /* ── Multi-slot photo grid ────────────────────────────────────────── */
+    '.sr-slot-counter { font-size: 11px; color: #6b7280; text-align: center; margin-bottom: 8px; }',
   ].join('\n');
 
   /* ── Helpers ─────────────────────────────────────────────────────────── */
@@ -436,86 +450,253 @@
     }
 
     function renderPhotoUploadStep(stepConfig, onComplete) {
-      var wrapper = el('div', { class: 'sr-msg bot' });
-      var stepEl = el('div', { class: 'sr-photo-step' });
-
-      var inp = document.createElement('input');
-      inp.type = 'file';
-      inp.accept = 'image/jpeg,image/png,image/heic,image/*';
-      inp.style.display = 'none';
-      document.body.appendChild(inp);
-
-      function cleanup() {
-        if (inp.parentNode) inp.parentNode.removeChild(inp);
+      /* ── Block the input row until this step fully resolves ─────────── */
+      function blockInput() {
+        var inp = document.getElementById('sr-input');
+        var send = document.getElementById('sr-send');
+        var attach = document.getElementById('sr-attach');
+        if (inp) { inp.disabled = true; inp.placeholder = 'Please respond to the photo request above…'; }
+        if (send) send.disabled = true;
+        if (attach) attach.disabled = true;
       }
-
-      function showUploadingState() {
-        var actionsEl = stepEl.querySelector('.sr-photo-actions');
-        if (actionsEl) actionsEl.innerHTML = '<span style="opacity:0.7">Uploading...</span>';
+      function unblockInput() {
+        var inp = document.getElementById('sr-input');
+        var send = document.getElementById('sr-send');
+        var attach = document.getElementById('sr-attach');
+        if (inp) { inp.disabled = false; inp.placeholder = 'Type a message…'; }
+        if (send) send.disabled = false;
+        if (attach) attach.disabled = false;
       }
+      /* Wrap onComplete so input is always unblocked when the step ends */
+      var originalOnComplete = onComplete;
+      onComplete = function(urls) { unblockInput(); originalOnComplete(urls); };
 
-      function showErrorState() {
-        var actionsEl = stepEl.querySelector('.sr-photo-actions');
-        if (actionsEl) {
-          actionsEl.innerHTML =
-            '<span style="color:#ef4444;font-size:13px">Upload failed. </span>' +
-            '<button class="sr-photo-btn-skip" id="sr-photo-skip-retry">Maybe Later</button>';
-          var retrySkip = actionsEl.querySelector('#sr-photo-skip-retry');
-          if (retrySkip) retrySkip.addEventListener('click', function() { cleanup(); onComplete([]); });
-        }
-      }
+      blockInput();
 
-      function doUpload(file) {
-        showUploadingState();
-        var host = apiBase === '/' ? '' : apiBase;
-        var fd = new FormData();
-        fd.append('file', file);
-        fd.append('workspace_id', workspace);
-        fetch(host + '/v1/widget/upload', { method: 'POST', body: fd })
-          .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('Upload failed')); })
-          .then(function(res) {
-            var files = normalizeUploadedFiles(res);
-            var urls = files.map(function(f) { return f.url || f; });
-            cleanup();
-            onComplete(urls);
-          })
-          .catch(function() { showErrorState(); });
-      }
-
-      stepEl.innerHTML =
-        '<div class="sr-photo-actions">' +
-          '<button class="sr-photo-btn-upload" id="sr-photo-btn-upload">Upload Photo</button>' +
-          '<button class="sr-photo-btn-upload" id="sr-photo-btn-camera">Take Photo</button>' +
-          '<button class="sr-photo-btn-skip" id="sr-photo-btn-skip">Maybe Later</button>' +
+      /* ── Step 1: show disclaimer first ──────────────────────────────── */
+      var disclaimerWrapper = el('div', { class: 'sr-msg bot sr-msg-full' });
+      var disclaimerEl = el('div', { class: 'sr-photo-disclaimer' });
+      disclaimerEl.innerHTML =
+        '<div class="sr-disclaimer-icon">📷</div>' +
+        '<p class="sr-disclaimer-title">Photo Upload Permission</p>' +
+        '<p class="sr-disclaimer-body">' +
+          'You will be asked to upload up to <strong>3 photos</strong> to assist with your consultation. ' +
+          'Your photos will be handled securely and used solely for medical analysis by our team. ' +
+          'We will not share your photos with any third party without your consent.' +
+        '</p>' +
+        '<div class="sr-disclaimer-actions">' +
+          '<button class="sr-disclaimer-btn-accept" id="sr-disclaimer-accept">I Agree &amp; Continue</button>' +
+          '<button class="sr-disclaimer-btn-decline" id="sr-disclaimer-decline">Maybe Later</button>' +
         '</div>';
 
-      var uploadBtn = stepEl.querySelector('#sr-photo-btn-upload');
-      if (uploadBtn) {
-        uploadBtn.addEventListener('click', function() {
-          inp.removeAttribute('capture');
-          inp.onchange = function(e) { if (e.target.files && e.target.files[0]) doUpload(e.target.files[0]); };
-          inp.click();
-        });
-      }
-
-      var cameraBtn = stepEl.querySelector('#sr-photo-btn-camera');
-      if (cameraBtn) {
-        cameraBtn.addEventListener('click', function() {
-          inp.setAttribute('capture', 'environment');
-          inp.onchange = function(e) { if (e.target.files && e.target.files[0]) doUpload(e.target.files[0]); };
-          inp.click();
-        });
-      }
-
-      var skipBtn = stepEl.querySelector('#sr-photo-btn-skip');
-      if (skipBtn) skipBtn.addEventListener('click', function() { cleanup(); onComplete([]); });
-
-      // append to DOM
-      wrapper.appendChild(stepEl);
-      messagesEl.appendChild(wrapper);
+      disclaimerWrapper.appendChild(disclaimerEl);
+      messagesEl.appendChild(disclaimerWrapper);
       messagesEl.scrollTop = messagesEl.scrollHeight;
 
+      var declineBtn = disclaimerEl.querySelector('#sr-disclaimer-decline');
+      var acceptBtn = disclaimerEl.querySelector('#sr-disclaimer-accept');
 
+      function lockDisclaimerButtons() {
+        [acceptBtn, declineBtn].forEach(function(btn) {
+          if (!btn) return;
+          btn.disabled = true;
+          btn.style.opacity = '0.5';
+          btn.style.cursor = 'not-allowed';
+          btn.style.pointerEvents = 'none';
+        });
+      }
+
+      if (declineBtn) {
+        declineBtn.addEventListener('click', function() {
+          lockDisclaimerButtons();
+          onComplete([]);
+        });
+      }
+
+      if (acceptBtn) {
+        acceptBtn.addEventListener('click', function() {
+          lockDisclaimerButtons();
+          renderPhotoSlots();
+        });
+      }
+
+      /* ── Step 2: show multi-slot upload UI after disclaimer accepted ── */
+      function renderPhotoSlots() {
+        var MAX_SLOTS = 3;
+        var slotFiles  = [null, null, null]; // File objects per slot
+        var slotUrls   = [null, null, null]; // Uploaded URLs per slot
+        var slotStates = ['empty', 'empty', 'empty']; // empty | uploading | done | error
+
+        var wrapper = el('div', { class: 'sr-msg bot sr-msg-full' });
+        var stepEl  = el('div', { class: 'sr-photo-step' });
+
+        function countUploaded() {
+          return slotUrls.filter(function(u) { return !!u; }).length;
+        }
+
+        function renderStep() {
+          var slotsHtml = '';
+          for (var i = 0; i < MAX_SLOTS; i++) {
+            var state = slotStates[i];
+            var inner = '';
+            if (state === 'empty') {
+              inner = '<span class="sr-slot-icon">+</span><span class="sr-slot-label">Photo ' + (i + 1) + '</span>';
+            } else if (state === 'uploading') {
+              inner = '<span class="sr-slot-icon">⏳</span><span class="sr-slot-label">Uploading…</span><div class="sr-slot-progress" style="width:60%"></div>';
+            } else if (state === 'done') {
+              inner = '<img src="' + escHtml(resolveAttachmentUrl(slotUrls[i])) + '" alt="Photo ' + (i + 1) + '" />' +
+                      '<button class="sr-slot-remove" data-slot="' + i + '" title="Remove">&times;</button>' +
+                      '<span class="sr-slot-status">✅</span>';
+            } else if (state === 'error') {
+              inner = '<span class="sr-slot-icon" style="color:#ef4444">⚠️</span>' +
+                      '<span class="sr-slot-label" style="color:#ef4444">Failed</span>' +
+                      '<button class="sr-photo-retry-btn" data-slot="' + i + '">Retry</button>';
+            }
+            var extraClass = (state === 'done' || state === 'uploading') ? ' has-photo' : '';
+            slotsHtml += '<div class="sr-photo-slot' + extraClass + '" data-slot="' + i + '">' + inner + '</div>';
+          }
+
+          var uploaded = countUploaded();
+          var canSubmit = uploaded > 0 && slotStates.indexOf('uploading') === -1;
+
+          stepEl.innerHTML =
+            '<p class="sr-photo-prompt">Select up to 3 photos (at least 1 required)</p>' +
+            '<p class="sr-slot-counter">Uploaded: ' + uploaded + ' / ' + MAX_SLOTS + '</p>' +
+            '<div class="sr-photo-grid">' + slotsHtml + '</div>' +
+            '<div class="sr-photo-actions">' +
+              '<button class="sr-photo-btn-upload" id="sr-photo-submit"' + (canSubmit ? '' : ' disabled') + '>Send Photos (' + uploaded + ')</button>' +
+              '<button class="sr-photo-btn-skip" id="sr-photo-skip">Maybe Later</button>' +
+            '</div>';
+
+          bindSlotEvents();
+        }
+
+        function bindSlotEvents() {
+          /* click empty slot → pick file */
+          var slots = stepEl.querySelectorAll('.sr-photo-slot');
+          for (var si = 0; si < slots.length; si++) {
+            (function(slotEl) {
+              var idx = Number(slotEl.getAttribute('data-slot'));
+              if (slotStates[idx] === 'empty') {
+                slotEl.addEventListener('click', function() { openPicker(idx, false); });
+              }
+            })(slots[si]);
+          }
+
+          /* retry button */
+          var retryBtns = stepEl.querySelectorAll('.sr-photo-retry-btn');
+          for (var ri = 0; ri < retryBtns.length; ri++) {
+            (function(btn) {
+              var idx = Number(btn.getAttribute('data-slot'));
+              btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (slotFiles[idx]) {
+                  doUploadSlot(idx, slotFiles[idx]);
+                } else {
+                  openPicker(idx, false);
+                }
+              });
+            })(retryBtns[ri]);
+          }
+
+          /* remove button */
+          var removeBtns = stepEl.querySelectorAll('.sr-slot-remove');
+          for (var rmi = 0; rmi < removeBtns.length; rmi++) {
+            (function(btn) {
+              var idx = Number(btn.getAttribute('data-slot'));
+              btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                slotFiles[idx]  = null;
+                slotUrls[idx]   = null;
+                slotStates[idx] = 'empty';
+                renderStep();
+              });
+            })(removeBtns[rmi]);
+          }
+
+          /* submit */
+          var submitBtn = stepEl.querySelector('#sr-photo-submit');
+          if (submitBtn) {
+            submitBtn.addEventListener('click', function() {
+              lockSlotUI();
+              var urls = slotUrls.filter(function(u) { return !!u; });
+              onComplete(urls);
+            });
+          }
+
+          /* skip */
+          var skipBtn = stepEl.querySelector('#sr-photo-skip');
+          if (skipBtn) {
+            skipBtn.addEventListener('click', function() {
+              lockSlotUI();
+              onComplete([]);
+            });
+          }
+        }
+
+        /* Lock the entire slot UI so no button can be re-clicked */
+        function lockSlotUI() {
+          var allBtns = stepEl.querySelectorAll('button');
+          for (var bi = 0; bi < allBtns.length; bi++) {
+            allBtns[bi].disabled = true;
+            allBtns[bi].style.opacity = '0.5';
+            allBtns[bi].style.cursor = 'not-allowed';
+            allBtns[bi].style.pointerEvents = 'none';
+          }
+          var allSlots = stepEl.querySelectorAll('.sr-photo-slot');
+          for (var sli = 0; sli < allSlots.length; sli++) {
+            allSlots[sli].style.pointerEvents = 'none';
+            allSlots[sli].style.cursor = 'default';
+          }
+        }
+
+        function openPicker(slotIdx, useCamera) {
+          var inp = document.createElement('input');
+          inp.type = 'file';
+          inp.accept = 'image/jpeg,image/png,image/heic,image/*';
+          if (useCamera) inp.setAttribute('capture', 'environment');
+          inp.style.display = 'none';
+          document.body.appendChild(inp);
+          inp.addEventListener('change', function(e) {
+            var file = e.target.files && e.target.files[0];
+            if (file) {
+              slotFiles[slotIdx] = file;
+              doUploadSlot(slotIdx, file);
+            }
+            if (inp.parentNode) inp.parentNode.removeChild(inp);
+          });
+          inp.click();
+        }
+
+        function doUploadSlot(slotIdx, file) {
+          slotStates[slotIdx] = 'uploading';
+          slotUrls[slotIdx]   = null;
+          renderStep();
+
+          var host = apiBase === '/' ? '' : apiBase;
+          var fd = new FormData();
+          fd.append('file', file);
+          fd.append('workspace_id', workspace);
+          fetch(host + '/v1/widget/upload', { method: 'POST', body: fd })
+            .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('Upload failed')); })
+            .then(function(res) {
+              var files = normalizeUploadedFiles(res);
+              var url = files.length ? (files[0].url || files[0]) : null;
+              slotUrls[slotIdx]   = url;
+              slotStates[slotIdx] = url ? 'done' : 'error';
+              renderStep();
+            })
+            .catch(function() {
+              slotStates[slotIdx] = 'error';
+              renderStep();
+            });
+        }
+
+        renderStep();
+        wrapper.appendChild(stepEl);
+        messagesEl.appendChild(wrapper);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
     }
 
     var typingEl = null;
@@ -693,7 +874,7 @@
               }
             }
 
-            // Fallback: LLM actions (legacy path, kept for backward compatibility)
+            // Fallback 2: LLM actions (legacy path, kept for backward compatibility)
             if (!shouldShowPhotoUpload) {
               var actions = res.actions || [];
               for (var ai = 0; ai < actions.length; ai++) {
@@ -703,6 +884,20 @@
                   photoStepConfig = action.config || (action.payload && action.payload.config) || {};
                   break;
                 }
+              }
+            }
+
+            // Fallback 3: pure keyword detection on bot reply — fires when neither
+            // stage nor action data is present but the bot is clearly asking for photos.
+            if (!shouldShowPhotoUpload) {
+              var botReplyLower = (res.bot_reply || '').toLowerCase();
+              var photoKeywords = ['photo', 'picture', 'image', 'upload', 'foto'];
+              var replyMentionsPhoto = photoKeywords.some(function(kw) {
+                return botReplyLower.indexOf(kw) !== -1;
+              });
+              if (replyMentionsPhoto) {
+                shouldShowPhotoUpload = true;
+                photoStepConfig = {};
               }
             }
           }
