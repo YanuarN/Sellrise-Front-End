@@ -730,7 +730,7 @@
 
     /* ── Anonymous lead auto-creation ────────────────────────────────────── */
     function autoCreateLead() {
-      postJSON(apiBase + '/v1/widget/lead', {
+      return postJSON(apiBase + '/v1/widget/lead', {
         workspace_id: workspace,
         session_id: sessionId,
         email: 'visitor-' + sessionId + '@widget.local',
@@ -738,15 +738,11 @@
       })
         .then(function (res) {
           leadId = res.lead_id;
-          hasShownGreeting = false;
-          /* Show initial greeting from the scenario */
-          var greeting = getGreetingFromScenario('there');
-          addMessage('bot', greeting);
-          hasShownGreeting = true;
-          document.getElementById('sr-input') && document.getElementById('sr-input').focus();
+          return res;
         })
         .catch(function (err) {
           console.warn('[Sellrise] Could not initialize chat session:', err.message);
+          throw err;
         });
     }
 
@@ -801,7 +797,25 @@
 
     /* ── Message sending ───────────────────────────────────────────────── */
     function sendMessage(text) {
-      if ((!text.trim() && !pendingAttachments.length) || isSending || isUploading || !leadId) return;
+      if ((!text.trim() && !pendingAttachments.length) || isSending || isUploading) return;
+
+      if (!leadId) {
+        isSending = true;
+        document.getElementById('sr-send').disabled = true;
+
+        autoCreateLead()
+          .then(function () {
+            isSending = false;
+            sendMessage(text);
+          })
+          .catch(function (err) {
+            isSending = false;
+            document.getElementById('sr-send').disabled = false;
+            showError('Error: ' + (err.message || 'Could not initialize chat session.'));
+          });
+        return;
+      }
+
       isSending = true;
       var isFirstTurn = !hasShownGreeting;
       var curAttachments = pendingAttachments.slice();
@@ -934,8 +948,9 @@
         panel.classList.add('sr-open');
         renderBubbleIcon(true);
         setUnreadBadge(0);
-        if (!leadId) {
-          autoCreateLead();
+        if (!hasShownGreeting) {
+          addMessage('bot', getGreetingFromScenario('there'));
+          hasShownGreeting = true;
         }
         document.getElementById('sr-input') && document.getElementById('sr-input').focus();
       } else {
