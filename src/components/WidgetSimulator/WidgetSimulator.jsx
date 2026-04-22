@@ -217,6 +217,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
           workspace_id: workspaceId,
           name: 'Simulator User',
           email: `simulator-${Date.now()}@test.local`,
+          is_simulator: true,
           consent_given: true,
         });
         if (cancelled) return;
@@ -440,6 +441,7 @@ function WidgetSimulator({ onClose, workspaceId, workspaceName = 'Workspace', fa
         workspace_id: workspaceId,
         name: 'Simulator User',
         email: `simulator-${Date.now()}@test.local`,
+        is_simulator: true,
         consent_given: true,
       });
       setLeadId(res.lead_id);
