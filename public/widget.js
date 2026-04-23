@@ -205,6 +205,29 @@
     return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
   }
 
+  function safeSessionStorageGet(key) {
+    try {
+      return w.sessionStorage.getItem(key);
+    } catch (storageError) {
+      return null;
+    }
+  }
+
+  function safeSessionStorageSet(key, value) {
+    try {
+      w.sessionStorage.setItem(key, value);
+      return true;
+    } catch (storageError) {
+      return false;
+    }
+  }
+
+  function safeSessionStorageRemove(key) {
+    try {
+      w.sessionStorage.removeItem(key);
+    } catch (storageError) {}
+  }
+
   function el(tag, attrs, html) {
     var e = document.createElement(tag);
     if (attrs) Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
@@ -216,7 +239,11 @@
   function init(config) {
     var apiBase        = config.apiBaseUrl   || 'http://localhost:8000';
     var workspace      = config.workspace    || '';
-    var sessionId      = config.sessionId    || ('sr_' + Date.now());
+    var storageScope   = [
+      workspace || 'default',
+      (w.location && w.location.hostname) || 'unknown'
+    ].join(':');
+    var conversationStorageKey = ['sr-conversation', storageScope].join(':');
     var branding       = config.branding     || {};
     var scenario       = config.scenario     || null;
     var brandName      = branding.brand_name || 'Plashic';
@@ -240,24 +267,89 @@
     var side   = (position === 'bottom-left') ? 'left' : 'right';
     var oppSide= (position === 'bottom-left') ? 'right' : 'left';
 
+    function normalizeStoredMessage(message) {
+      if (!message || typeof message !== 'object') return null;
+
+      var role = message.role === 'user' ? 'user' : 'bot';
+      var text = typeof message.text === 'string' ? message.text : '';
+      var attachmentUrls = Array.isArray(message.attachmentUrls)
+        ? message.attachmentUrls.filter(function (url) { return typeof url === 'string' && url; })
+        : [];
+      var timestamp = typeof message.timestamp === 'string' && message.timestamp
+        ? message.timestamp
+        : ts();
+
+      if (!text && !attachmentUrls.length) return null;
+
+      return {
+        role: role,
+        text: text,
+        attachmentUrls: attachmentUrls,
+        timestamp: timestamp,
+      };
+    }
+
+    function getStoredConversationState() {
+      var raw = safeSessionStorageGet(conversationStorageKey);
+      if (!raw) return null;
+
+      try {
+        var parsed = JSON.parse(raw);
+        var messages = Array.isArray(parsed && parsed.messages)
+          ? parsed.messages.map(normalizeStoredMessage).filter(Boolean)
+          : [];
+
+        return {
+          sessionId: parsed && typeof parsed.sessionId === 'string' ? parsed.sessionId : null,
+          leadId: parsed && typeof parsed.leadId === 'string' ? parsed.leadId : null,
+          hasShownGreeting: !!(parsed && parsed.hasShownGreeting),
+          photoUploadTriggered: !!(parsed && parsed.photoUploadTriggered),
+          messages: messages,
+        };
+      } catch (storageError) {
+        safeSessionStorageRemove(conversationStorageKey);
+        return null;
+      }
+    }
+
+    var restoredConversationState = getStoredConversationState();
+    var sessionId = (restoredConversationState && restoredConversationState.sessionId)
+      || config.sessionId
+      || ('sr_' + Date.now());
+
     /* ── State ─────────────────────────────────────────────────────────── */
     var isOpen    = false;
-    var leadId    = null;
+    var leadId    = restoredConversationState && restoredConversationState.leadId
+      ? restoredConversationState.leadId
+      : null;
     var isSending = false;
     var isUploading = false;
     var pendingAttachments = [];
     var attachmentPreviewUrls = {};
-    var hasShownGreeting = false;
+    var hasShownGreeting = !!(restoredConversationState && restoredConversationState.hasShownGreeting);
     var initialUnreadStorageKey = [
       'sr-initial-unread',
       workspace || 'default',
       (w.location && w.location.hostname) || 'unknown'
     ].join(':');
+    var messageHistory = restoredConversationState && restoredConversationState.messages
+      ? restoredConversationState.messages.slice()
+      : [];
     var patientServiceConfig = null;    // { enabled, base_url, auth_token }
     var patientId = null;               // Phlastic patient_id from external_identities
     // Guard: prevent photo upload UI from re-triggering once the user has
     // interacted with it (uploaded or skipped). Mirrors WidgetSimulator behaviour.
-    var photoUploadTriggered = false;
+    var photoUploadTriggered = !!(restoredConversationState && restoredConversationState.photoUploadTriggered);
+
+    function persistConversationState() {
+      safeSessionStorageSet(conversationStorageKey, JSON.stringify({
+        sessionId: sessionId,
+        leadId: leadId,
+        hasShownGreeting: hasShownGreeting,
+        photoUploadTriggered: photoUploadTriggered,
+        messages: messageHistory,
+      }));
+    }
 
     /* Accept patient_service from config (typically injected after /session call) */
     if (config.patient_service && config.patient_service.enabled) {
@@ -288,6 +380,7 @@
     }
 
     function shouldShowInitialUnreadBadge() {
+      if (messageHistory.length) return false;
       try {
         return w.sessionStorage.getItem(initialUnreadStorageKey) !== '1';
       } catch (storageError) {
@@ -314,6 +407,8 @@
     renderBubbleIcon(false);
     if (shouldShowInitialUnreadBadge()) {
       setUnreadBadge(1);
+      rememberInitialUnreadDisplayed();
+    } else if (messageHistory.length) {
       rememberInitialUnreadDisplayed();
     }
 
@@ -417,25 +512,62 @@
       updateInputPlaceholder();
     }
 
-    function addMessage(role, text, attachmentUrls) {
-      var msg = el('div', { class: 'sr-msg ' + role });
+    function renderMessage(message) {
+      var images = Array.isArray(message.attachmentUrls)
+        ? message.attachmentUrls
+        : (message.attachmentUrls ? [message.attachmentUrls] : []);
+      var msg = el('div', { class: 'sr-msg ' + message.role });
       var parts = [];
-      var images = Array.isArray(attachmentUrls)
-        ? attachmentUrls
-        : (attachmentUrls ? [attachmentUrls] : []);
       if (images.length) {
         for (var imageIndex = 0; imageIndex < images.length; imageIndex += 1) {
           parts.push('<img src="' + escHtml(resolveAttachmentUrl(images[imageIndex])) + '" alt="Attachment" />');
         }
       }
-      if (text) {
-        parts.push('<div class="sr-bubble-msg">' + escHtml(text) + '</div>');
+      if (message.text) {
+        parts.push('<div class="sr-bubble-msg">' + escHtml(message.text) + '</div>');
       }
       msg.innerHTML = parts.join('') +
-        '<span class="sr-ts">' + ts() + '</span>';
+        '<span class="sr-ts">' + escHtml(message.timestamp || ts()) + '</span>';
       messagesEl.appendChild(msg);
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
+
+    function addMessage(role, text, attachmentUrls, options) {
+      var normalizedMessage = normalizeStoredMessage({
+        role: role,
+        text: text,
+        attachmentUrls: Array.isArray(attachmentUrls)
+          ? attachmentUrls
+          : (attachmentUrls ? [attachmentUrls] : []),
+        timestamp: options && options.timestamp ? options.timestamp : ts(),
+      });
+
+      if (!normalizedMessage) return;
+
+      renderMessage(normalizedMessage);
+
+      if (options && options.skipPersist) return;
+
+      messageHistory.push(normalizedMessage);
+      persistConversationState();
+    }
+
+    function restoreConversationMessages() {
+      if (!messageHistory.length) return;
+      for (var messageIndex = 0; messageIndex < messageHistory.length; messageIndex += 1) {
+        addMessage(
+          messageHistory[messageIndex].role,
+          messageHistory[messageIndex].text,
+          messageHistory[messageIndex].attachmentUrls,
+          {
+            timestamp: messageHistory[messageIndex].timestamp,
+            skipPersist: true,
+          }
+        );
+      }
+    }
+
+    restoreConversationMessages();
 
     /* ── Photo Upload Step (PRD 3) ─────────────────────────────────────── */
     var PHOTO_TYPES = ['face_front', 'face_side', 'face_45', 'body', 'other'];
@@ -780,11 +912,11 @@
       })
         .then(function (res) {
           leadId = res.lead_id;
-          hasShownGreeting = false;
+          hasShownGreeting = true;
+          persistConversationState();
           /* Show initial greeting from the scenario */
           var greeting = getGreetingFromScenario('there');
           addMessage('bot', greeting);
-          hasShownGreeting = true;
           document.getElementById('sr-input') && document.getElementById('sr-input').focus();
         })
         .catch(function (err) {
@@ -941,6 +1073,7 @@
 
           if (shouldShowPhotoUpload) {
             photoUploadTriggered = true;
+            persistConversationState();
             // Small delay so bot message is readable before the upload UI appears
             setTimeout(function() {
               renderPhotoUploadStep(photoStepConfig, function(urls) {
